@@ -16,16 +16,22 @@ function main() {
         fuel: 12,
         thrustX: 0.05,
         thrustY: 0.1,
-        maxLandingVelocity: 0.5,
+        maxLandingSpeed: 0.5,
         gravity: 9.8,
     });
 
     const secondsPerFrame = 1 / 60;
-    setInterval(() => {
+    const interval = setInterval(() => {
         drawBackground(canvas, ctx);
         drawTerrain(canvas, ctx, terrain);
-        lander.draw(canvas, ctx);
         lander.move(secondsPerFrame, terrain);
+        lander.draw(canvas, ctx);
+
+        drawSpeed(ctx, lander);
+        drawFuel(ctx, lander);
+        if (lander.crashed || lander.landed) {
+            clearInterval(interval);
+        }
     }, secondsPerFrame);
 
     document.addEventListener('keydown', (event) => {
@@ -93,6 +99,47 @@ function drawTerrain(canvas, ctx, terrain) {
     ctx.fill();
 }
 
+function drawSpeed(ctx, lander) {
+    const width = 300;
+    const maxSpeedWidth = width * 0.8;
+    const height = 6;
+    const x = 20;
+    const y = 40;
+    const speed = Math.sqrt(lander.velocityX ** 2 + lander.velocityY ** 2);
+    const speedRatio = speed / lander.maxLandingSpeed;
+
+    ctx.strokeStyle = 'white';
+    ctx.strokeRect(x, y, width, height);
+
+    ctx.fillStyle = speedRatio >= 1 ? 'red' : 'green';
+    ctx.fillRect(x, y, Math.min(maxSpeedWidth * speedRatio, width), height);
+
+    ctx.fillStyle = 'rgb(255 255 255 / 0.7)';
+    ctx.fillRect(maxSpeedWidth - 1, y, 2, height);
+
+    ctx.fillStyle = 'white';
+    ctx.font = '14px sans-serif';
+    ctx.fillText('Speed', x, 30);
+}
+
+function drawFuel(ctx, lander) {
+    const width = 300;
+    const height = 6;
+    const x = 20;
+    const y = 80;
+    const fuelRatio = lander.fuel / lander.initialFuel;
+
+    ctx.strokeStyle = 'white';
+    ctx.strokeRect(x, y, width, height);
+
+    ctx.fillStyle = 'hsl(220 100% 50%)';
+    ctx.fillRect(x, y, Math.min(width * fuelRatio, width), height);
+
+    ctx.fillStyle = 'white';
+    ctx.font = '14px sans-serif';
+    ctx.fillText('Fuel', x, 70);
+}
+
 function realToCanvasX(canvasWidth, x) {
     return x;
 }
@@ -109,6 +156,10 @@ function random(min, max) {
     return min + (max - min) * Math.random();
 }
 
+function round(value, precision) {
+    return Math.round(value * 10 ** precision) / 10 ** precision;
+}
+
 class Lander {
     constructor({
         x,
@@ -117,7 +168,7 @@ class Lander {
         fuel,
         thrustX,
         thrustY,
-        maxLandingVelocity,
+        maxLandingSpeed,
         width = 20,
         height = 20,
         minX = 0,
@@ -139,7 +190,7 @@ class Lander {
         this.initialFuel = fuel;
         this.thrustX = thrustX;
         this.thrustY = thrustY;
-        this.maxLandingVelocity = maxLandingVelocity;
+        this.maxLandingSpeed = maxLandingSpeed;
         this.width = width;
         this.height = height;
         this.minX = minX;
@@ -167,15 +218,13 @@ class Lander {
             const landingSpeed = Math.sqrt(
                 this.velocityX ** 2 + this.velocityY ** 2
             );
-            if (landingSpeed <= this.maxLandingVelocity) {
+            if (landingSpeed <= this.maxLandingSpeed) {
                 this.landed = true;
             } else {
                 this.crashed = true;
             }
 
             this.y = terrainHeight;
-            this.velocityX = 0;
-            this.velocityY = 0;
         }
     }
 
@@ -227,7 +276,7 @@ class Lander {
 
         // Fuel
         if (!this.crashed && !this.landed) {
-            ctx.fillStyle = `hsl(${fuelRatio * 120} 100% 50%)`;
+            ctx.fillStyle = `hsl(210 100% 50%)`;
             ctx.fillRect(
                 left,
                 top + fuelHeight,
