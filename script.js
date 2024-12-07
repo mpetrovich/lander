@@ -40,6 +40,12 @@ function main() {
         gravity: 9.8,
     });
 
+    loadImages([
+        'img/lander.png',
+        'img/lander-landed.png',
+        'img/lander-crashed.png',
+    ]);
+
     const secondsPerFrame = 1 / 60;
     const interval = setInterval(() => {
         drawBackground(canvas, ctx);
@@ -73,6 +79,15 @@ function createCanvas() {
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
     return { canvas, ctx };
+}
+
+function loadImages(srcs) {
+    const images = {};
+    srcs.forEach((src) => {
+        const img = new Image();
+        img.src = src;
+        images[src] = img;
+    });
 }
 
 function generateTerrain({
@@ -227,8 +242,8 @@ class Lander {
         thrustX,
         thrustY,
         maxLandingSpeed,
-        width = 20,
-        height = 20,
+        width = 48,
+        height = 60,
         minX = 0,
         maxX = Infinity,
         minY = 0,
@@ -324,30 +339,28 @@ class Lander {
         const left = midX - this.width / 2;
         const top = midY - this.height / 2;
         const fuelRatio = this.fuel / this.initialFuel;
+        const fuelWidth = 5;
         const fuelHeight = (1 - fuelRatio) * this.height;
-
-        // Body
-        ctx.fillStyle = this.crashed ? 'red' : this.landed ? 'green' : 'black';
-        ctx.strokeStyle = 'white';
-        ctx.fillRect(left, top, this.width, this.height);
-        ctx.strokeRect(left, top, this.width, this.height);
 
         // Fuel
         if (!this.crashed && !this.landed) {
             ctx.fillStyle = `hsl(210 100% 50%)`;
             ctx.fillRect(
-                left,
+                left + this.width + 10,
                 top + fuelHeight,
-                this.width,
-                this.height - fuelHeight
-            );
-            ctx.strokeRect(
-                left,
-                top + fuelHeight,
-                this.width,
+                fuelWidth,
                 this.height - fuelHeight
             );
         }
+
+        // Sprite
+        const img = new Image();
+        img.src = this.landed
+            ? 'img/lander-landed.png'
+            : this.crashed
+            ? 'img/lander-crashed.png'
+            : 'img/lander.png';
+        ctx.drawImage(img, left, top, this.width, this.height);
     }
 }
 
