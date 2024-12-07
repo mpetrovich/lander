@@ -1,10 +1,24 @@
 function main() {
     const { canvas, ctx } = createCanvas();
+    const backgroundTerrain = generateTerrain({
+        width: canvas.width,
+        minHeight: 200,
+        maxHeight: 300,
+        step: 20,
+        jaggedness: 20,
+    });
+    const midgroundTerrain = generateTerrain({
+        width: canvas.width,
+        minHeight: 100,
+        maxHeight: 300,
+        step: 20,
+        jaggedness: 10,
+    });
     const terrain = generateTerrain({
         width: canvas.width,
-        minHeight: 10,
+        minHeight: 20,
         maxHeight: 100,
-        step: 20,
+        step: 10,
         jaggedness: 10,
     });
     const lander = new Lander({
@@ -23,7 +37,9 @@ function main() {
     const secondsPerFrame = 1 / 60;
     const interval = setInterval(() => {
         drawBackground(canvas, ctx);
-        drawTerrain(canvas, ctx, terrain);
+        drawTerrain(canvas, ctx, backgroundTerrain, 'hsl(0 0% 10%)');
+        drawTerrain(canvas, ctx, midgroundTerrain, 'hsl(0 0% 15%)');
+        drawTerrain(canvas, ctx, terrain, 'hsl(0 0% 50%)');
         lander.move(secondsPerFrame, terrain);
         lander.draw(canvas, ctx);
 
@@ -54,6 +70,23 @@ function createCanvas() {
 }
 
 function generateTerrain({ width, minHeight, maxHeight, step, jaggedness }) {
+    const vertices = generateTerrainVertices({
+        width,
+        minHeight,
+        maxHeight,
+        step,
+        jaggedness,
+    });
+    return rasterizeTerrain(width, vertices);
+}
+
+function generateTerrainVertices({
+    width,
+    minHeight,
+    maxHeight,
+    step,
+    jaggedness,
+}) {
     const vertices = [];
     for (
         let x = 0, lastHeight = random(minHeight, maxHeight);
@@ -65,7 +98,10 @@ function generateTerrain({ width, minHeight, maxHeight, step, jaggedness }) {
         vertices.push([x, height]);
         lastHeight = height;
     }
+    return vertices;
+}
 
+function rasterizeTerrain(width, vertices) {
     const terrain = Array.from({ length: width + 1 }, () => undefined);
     let startVertex = vertices.shift();
     let endVertex = vertices.shift();
@@ -87,8 +123,8 @@ function drawBackground(canvas, ctx) {
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 }
 
-function drawTerrain(canvas, ctx, terrain) {
-    ctx.fillStyle = 'gray';
+function drawTerrain(canvas, ctx, terrain, color) {
+    ctx.fillStyle = color;
     ctx.beginPath();
     ctx.moveTo(0, canvas.height - terrain[0][1]);
     terrain.slice(1).forEach((height, x) => {
