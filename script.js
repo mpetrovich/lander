@@ -1,19 +1,31 @@
 function main() {
     const { canvas, ctx } = createCanvas();
+    const terrain = generateTerrain({
+        width: canvas.width,
+        minHeight: 10,
+        maxHeight: 100,
+        step: 20,
+        jaggedness: 10,
+    });
     const lander = new Lander({
         x: 50,
         y: canvas.height - 50,
+        velocityX: 0.3,
+        velocityY: 0.3,
         mass: 0.01,
-        fuel: 5,
+        fuel: 12,
         thrustX: 0.05,
         thrustY: 0.1,
+        maxLandingVelocity: 0.5,
+        gravity: 9.8,
     });
 
     const secondsPerFrame = 1 / 60;
     setInterval(() => {
         drawBackground(canvas, ctx);
+        drawTerrain(canvas, ctx, terrain);
         lander.draw(canvas, ctx);
-        lander.move(secondsPerFrame);
+        lander.move(secondsPerFrame, terrain);
     }, secondsPerFrame);
 
     document.addEventListener('keydown', (event) => {
@@ -35,9 +47,50 @@ function createCanvas() {
     return { canvas, ctx };
 }
 
+function generateTerrain({ width, minHeight, maxHeight, step, jaggedness }) {
+    const vertices = [];
+    for (
+        let x = 0, lastHeight = random(minHeight, maxHeight);
+        x <= width;
+        x += step
+    ) {
+        let height = Math.floor(lastHeight + random(-1, 1) * jaggedness);
+        height = clamp(height, minHeight, maxHeight);
+        vertices.push([x, height]);
+        lastHeight = height;
+    }
+
+    const terrain = Array.from({ length: width + 1 }, () => undefined);
+    let startVertex = vertices.shift();
+    let endVertex = vertices.shift();
+    for (let x = 0; x <= width; x++) {
+        const slope =
+            (endVertex[1] - startVertex[1]) / (endVertex[0] - startVertex[0]);
+        const height = startVertex[1] + slope * (x - startVertex[0]);
+        terrain[x] = height;
+        if (x === endVertex[0]) {
+            startVertex = endVertex;
+            endVertex = vertices.shift();
+        }
+    }
+    return terrain;
+}
+
 function drawBackground(canvas, ctx) {
     ctx.fillStyle = 'black';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+}
+
+function drawTerrain(canvas, ctx, terrain) {
+    ctx.fillStyle = 'gray';
+    ctx.beginPath();
+    ctx.moveTo(0, canvas.height - terrain[0][1]);
+    terrain.slice(1).forEach((height, x) => {
+        ctx.lineTo(x, canvas.height - height);
+    });
+    ctx.lineTo(canvas.width, canvas.height);
+    ctx.lineTo(0, canvas.height);
+    ctx.fill();
 }
 
 function realToCanvasX(canvasWidth, x) {
@@ -52,6 +105,10 @@ function clamp(value, min, max) {
     return Math.min(Math.max(value, min), max);
 }
 
+function random(min, max) {
+    return min + (max - min) * Math.random();
+}
+
 class Lander {
     constructor({
         x,
@@ -60,6 +117,9 @@ class Lander {
         fuel,
         thrustX,
         thrustY,
+        maxLandingVelocity,
+        width = 20,
+        height = 20,
         minX = 0,
         maxX = Infinity,
         minY = 0,
@@ -70,6 +130,7 @@ class Lander {
         maxVelocityX = Infinity,
         minVelocityY = -Infinity,
         maxVelocityY = Infinity,
+        gravity = 9.8,
     }) {
         this.x = x;
         this.y = y;
@@ -78,6 +139,9 @@ class Lander {
         this.initialFuel = fuel;
         this.thrustX = thrustX;
         this.thrustY = thrustY;
+        this.maxLandingVelocity = maxLandingVelocity;
+        this.width = width;
+        this.height = height;
         this.minX = minX;
         this.maxX = maxX;
         this.minY = minY;
@@ -88,15 +152,30 @@ class Lander {
         this.maxVelocityX = maxVelocityX;
         this.minVelocityY = minVelocityY;
         this.maxVelocityY = maxVelocityY;
+        this.gravity = gravity;
     }
 
-    move(seconds) {
-        const GRAVITY = 9.8;
+    move(seconds, terrain) {
         const mass = this.mass + (this.fuel / this.initialFuel) * this.mass;
-        this.accelerate(0, -mass * GRAVITY * seconds);
-        if (this.y > 0) {
+        this.accelerate(0, -mass * this.gravity * seconds);
+
+        const terrainHeight = terrain[Math.round(this.x)] + this.height / 2;
+        if (this.y > terrainHeight) {
             this.x = clamp(this.x + this.velocityX, this.minX, this.maxX);
             this.y = clamp(this.y + this.velocityY, this.minY, this.maxY);
+        } else {
+            const landingSpeed = Math.sqrt(
+                this.velocityX ** 2 + this.velocityY ** 2
+            );
+            if (landingSpeed <= this.maxLandingVelocity) {
+                this.landed = true;
+            } else {
+                this.crashed = true;
+            }
+
+            this.y = terrainHeight;
+            this.velocityX = 0;
+            this.velocityY = 0;
         }
     }
 
@@ -133,25 +212,35 @@ class Lander {
     }
 
     draw(canvas, ctx) {
-        const width = 20;
-        const height = 20;
         const midX = realToCanvasX(canvas.width, this.x);
         const midY = realToCanvasY(canvas.height, this.y);
-        const left = midX - width / 2;
-        const top = midY - height / 2;
+        const left = midX - this.width / 2;
+        const top = midY - this.height / 2;
         const fuelRatio = this.fuel / this.initialFuel;
-        const fuelHeight = (1 - fuelRatio) * height;
+        const fuelHeight = (1 - fuelRatio) * this.height;
 
         // Body
-        ctx.fillStyle = 'black';
+        ctx.fillStyle = this.crashed ? 'red' : this.landed ? 'green' : 'black';
         ctx.strokeStyle = 'white';
-        ctx.fillRect(left, top, width, height);
-        ctx.strokeRect(left, top, width, height);
+        ctx.fillRect(left, top, this.width, this.height);
+        ctx.strokeRect(left, top, this.width, this.height);
 
         // Fuel
-        ctx.fillStyle = `hsl(${fuelRatio * 120} 100% 50%)`;
-        ctx.fillRect(left, top + fuelHeight, width, height - fuelHeight);
-        ctx.strokeRect(left, top + fuelHeight, width, height - fuelHeight);
+        if (!this.crashed && !this.landed) {
+            ctx.fillStyle = `hsl(${fuelRatio * 120} 100% 50%)`;
+            ctx.fillRect(
+                left,
+                top + fuelHeight,
+                this.width,
+                this.height - fuelHeight
+            );
+            ctx.strokeRect(
+                left,
+                top + fuelHeight,
+                this.width,
+                this.height - fuelHeight
+            );
+        }
     }
 }
 
