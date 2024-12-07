@@ -6,6 +6,7 @@ function main() {
         maxHeight: 300,
         step: 20,
         jaggedness: 20,
+        hilliness: 0.5,
     });
     const midgroundTerrain = generateTerrain({
         width: canvas.width,
@@ -13,6 +14,7 @@ function main() {
         maxHeight: 300,
         step: 20,
         jaggedness: 10,
+        hilliness: 0.5,
     });
     const terrain = generateTerrain({
         width: canvas.width,
@@ -20,6 +22,7 @@ function main() {
         maxHeight: 100,
         step: 10,
         jaggedness: 10,
+        hilliness: 0.8,
     });
     const lander = new Lander({
         x: 50,
@@ -69,13 +72,21 @@ function createCanvas() {
     return { canvas, ctx };
 }
 
-function generateTerrain({ width, minHeight, maxHeight, step, jaggedness }) {
+function generateTerrain({
+    width,
+    minHeight,
+    maxHeight,
+    step,
+    jaggedness,
+    hilliness,
+}) {
     const vertices = generateTerrainVertices({
         width,
         minHeight,
         maxHeight,
         step,
         jaggedness,
+        hilliness,
     });
     return rasterizeTerrain(width, vertices);
 }
@@ -86,15 +97,18 @@ function generateTerrainVertices({
     maxHeight,
     step,
     jaggedness,
+    hilliness,
 }) {
     const vertices = [];
     for (
-        let x = 0, lastHeight = random(minHeight, maxHeight);
+        let x = 0, lastHeight = random(minHeight, maxHeight), slopeBias = 0;
         x <= width;
         x += step
     ) {
-        let height = Math.floor(lastHeight + random(-1, 1) * jaggedness);
-        height = clamp(height, minHeight, maxHeight);
+        lastSlopeBias = slopeBias;
+        slopeBias = random(-1, 1) + lastSlopeBias * hilliness;
+        let height = Math.floor(lastHeight + slopeBias * jaggedness);
+        height = Math.max(height, minHeight);
         vertices.push([x, height]);
         lastHeight = height;
     }
