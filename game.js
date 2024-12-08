@@ -456,8 +456,8 @@ class Lander {
             } else {
                 this.crashed = true;
             }
-
             this.y = terrainHeight;
+            this.thrust(0, 0);
         }
     }
 
