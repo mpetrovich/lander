@@ -44,11 +44,13 @@ const play = () =>
             landingPadWidth,
         });
         images = loadImages({
-            flying: 'img/lander.png',
-            landed: 'img/lander-landed.png',
-            crashed: 'img/lander-crashed.png',
+            flying: 'img/apollo.png',
+            landed: 'img/apollo-landed.png',
+            crashed: 'img/apollo-crashed.png',
         });
         const lander = new Lander({
+            width: 512 / 10,
+            height: 487 / 10,
             x: 50,
             y: canvas.height - 50,
             velocityX: 0.3,
@@ -63,9 +65,20 @@ const play = () =>
         });
 
         const secondsPerFrame = 1 / 60;
+        const starfieldPrecession = random(-0.01, 0.01);
+        const starfieldSpeed = random(1, 5);
+        let time = 0;
+        let starfieldAngle = random(0, 360);
         const interval = setInterval(() => {
             drawBackground(canvas, ctx);
-            drawStars(canvas, ctx, stars);
+            drawStars({
+                canvas,
+                ctx,
+                stars,
+                time,
+                angle: starfieldAngle,
+                speed: starfieldSpeed,
+            });
             drawTerrain(canvas, ctx, backgroundTerrain, 'hsl(0 0% 10%)');
             drawTerrain(canvas, ctx, midgroundTerrain, 'hsl(0 0% 15%)');
             drawTerrain(canvas, ctx, terrain, 'hsl(0 0% 50%)');
@@ -81,6 +94,8 @@ const play = () =>
                 resolve();
                 return;
             }
+            time += secondsPerFrame;
+            starfieldAngle += starfieldPrecession;
         }, secondsPerFrame);
 
         document.addEventListener('keydown', (event) => {
@@ -220,11 +235,32 @@ function drawBackground(canvas, ctx) {
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 }
 
-function drawStars(canvas, ctx, stars) {
+function drawStars({ canvas, ctx, stars, time = 0, angle = 0, speed = 1 }) {
+    ctx.save();
+    ctx.translate(canvas.width / 2, canvas.height / 2);
+    ctx.rotate(degToRad(angle));
     stars.forEach(([x, y]) => {
         ctx.fillStyle = `rgb(255 255 255 / ${random(0.5, 0.8)})`;
-        ctx.fillRect(x, y, 1, 1);
+        ctx.fillRect(
+            -canvas.width / 2 + ((x + time * speed) % canvas.width),
+            -canvas.height * 1.5 + y,
+            1,
+            1
+        );
+        ctx.fillRect(
+            -canvas.width / 2 + ((x + time * speed) % canvas.width),
+            -canvas.height * 0.5 + y,
+            1,
+            1
+        );
+        ctx.fillRect(
+            -canvas.width / 2 + ((x + time * speed) % canvas.width),
+            canvas.height * 0.5 + y,
+            1,
+            1
+        );
     });
+    ctx.restore();
 }
 
 function drawTerrain(canvas, ctx, terrain, color) {
@@ -320,8 +356,8 @@ class Lander {
         thrustX,
         thrustY,
         maxLandingSpeed,
-        width = 48,
-        height = 60,
+        width,
+        height,
         minX = 0,
         maxX = Infinity,
         minY = 0,
@@ -443,8 +479,9 @@ class Lander {
             this.images[
                 this.crashed ? 'crashed' : this.landed ? 'landed' : 'flying'
             ];
+        const offsetY = 10;
         const imgX = -this.width / 2;
-        const imgY = -this.height / 2;
+        const imgY = -this.height / 2 + offsetY;
         const imgWidth = this.width;
         const imgHeight = this.height;
         ctx.drawImage(img, imgX, imgY, imgWidth, imgHeight);
