@@ -176,29 +176,13 @@ function generateTerrain({
         jaggedness,
         hilliness,
     });
-
-    const landingPads = [];
-    const landingPadStepSize = Math.ceil(landingPadWidth / step) + 1;
-    for (let i = 0; i < landingPadCount; i++) {
-        const vi = Math.floor(
-            randomBias(
-                landingPadStepSize + vertices.length / 3,
-                vertices.length - landingPadStepSize - 1
-            )
-        );
-        const landingPadStartVertex = vertices[vi];
-        const landingPadVertices = Array.from(
-            { length: landingPadStepSize },
-            () => undefined
-        ).map((vertex, i) => {
-            const x = landingPadStartVertex[0] + i * step;
-            const y = landingPadStartVertex[1];
-            return [x, y];
-        });
-        vertices.splice(vi, landingPadStepSize, ...landingPadVertices);
-        landingPads.push(landingPadStartVertex);
-    }
-
+    const landingPads = generateLandingPads({
+        vertices,
+        step,
+        landingPadWidth,
+        landingPadCount,
+        minDistanceFraction: 1 / 3,
+    });
     const terrain = rasterizeTerrainPath(width, vertices);
     return [terrain, landingPads];
 }
@@ -228,6 +212,40 @@ function generateTerrainPath({
         lastHeight = height;
     }
     return vertices;
+}
+
+function generateLandingPads({
+    vertices,
+    step,
+    landingPadWidth,
+    landingPadCount,
+    buffer = 0,
+    minDistanceFraction = 0, // From left edge of terrain, as a fraction of the terrain width
+}) {
+    const landingPads = [];
+    const landingPadStepSize = Math.ceil(landingPadWidth / step) + 1;
+    for (let i = 0; i < landingPadCount; i++) {
+        const vi = Math.floor(
+            randomBias(
+                landingPadStepSize +
+                    buffer +
+                    minDistanceFraction * vertices.length,
+                vertices.length - landingPadStepSize - 1
+            )
+        );
+        const landingPadStartVertex = vertices[vi];
+        const landingPadVertices = Array.from(
+            { length: landingPadStepSize },
+            () => undefined
+        ).map((vertex, i) => {
+            const x = landingPadStartVertex[0] + i * step;
+            const y = landingPadStartVertex[1];
+            return [x, y];
+        });
+        vertices.splice(vi, landingPadStepSize, ...landingPadVertices);
+        landingPads.push(landingPadStartVertex);
+    }
+    return landingPads;
 }
 
 function rasterizeTerrainPath(width, vertices) {
