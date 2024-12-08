@@ -1,5 +1,9 @@
 function main() {
     const { canvas, ctx } = createCanvas();
+
+    resizeCanvas(canvas);
+    window.addEventListener('resize', () => resizeCanvas(canvas));
+
     const backgroundTerrain = generateTerrain({
         width: canvas.width,
         heightRange: [200, 300],
@@ -81,6 +85,11 @@ function createCanvas() {
     return { canvas, ctx };
 }
 
+function resizeCanvas(canvas) {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+
 function loadImages(srcs) {
     const images = {};
     for (const [key, src] of Object.entries(srcs)) {
@@ -150,6 +159,9 @@ function rasterizeTerrainPath(width, vertices) {
         if (x === endVertex[0]) {
             startVertex = endVertex;
             endVertex = vertices.shift();
+        }
+        if (endVertex === undefined) {
+            break;
         }
     }
     return terrain;
