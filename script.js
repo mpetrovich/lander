@@ -75,8 +75,8 @@ const play = () =>
             velocityY: 0.2,
             mass: 0.03,
             fuel: 12,
-            thrustX: 0.05,
-            thrustY: 0.1,
+            thrustAccelX: 0.05,
+            thrustAccelY: 0.1,
             maxLandingSpeed: 0.5,
             gravity: GRAVITY_MOON,
             images,
@@ -129,6 +129,10 @@ const play = () =>
             if (event.key === 'ArrowRight') {
                 lander.thrustRight();
             }
+        });
+
+        document.addEventListener('keyup', (event) => {
+            lander.thrust(0, 0);
         });
     });
 
@@ -384,8 +388,8 @@ class Lander {
         y,
         mass,
         fuel,
-        thrustX,
-        thrustY,
+        thrustAccelX,
+        thrustAccelY,
         maxLandingSpeed,
         width,
         height,
@@ -408,8 +412,8 @@ class Lander {
         this.mass = mass;
         this.fuel = fuel;
         this.initialFuel = fuel;
-        this.thrustX = thrustX;
-        this.thrustY = thrustY;
+        this.thrustAccelX = thrustAccelX;
+        this.thrustAccelY = thrustAccelY;
         this.maxLandingSpeed = maxLandingSpeed;
         this.width = width;
         this.height = height;
@@ -458,22 +462,26 @@ class Lander {
     }
 
     thrustUp() {
-        this.thrust(0, this.thrustY);
+        this.thrust(0, this.thrustAccelY);
     }
 
     thrustLeft() {
-        this.thrust(-this.thrustX, 0);
+        this.thrust(-this.thrustAccelX, 0);
     }
 
     thrustRight() {
-        this.thrust(this.thrustX, 0);
+        this.thrust(this.thrustAccelX, 0);
     }
 
     thrust(dx, dy) {
         this.fuel = clamp(this.fuel - Math.abs(dx) - Math.abs(dy), 0, Infinity);
         if (this.fuel > 0) {
             this.accelerate(dx, dy);
-            this.thrustDirection = dx === 0 ? 0 : dx > 0 ? 1 : -1;
+            this.thrustX = dx;
+            this.thrustY = dy;
+        } else {
+            this.thrustX = 0;
+            this.thrustY = 0;
         }
     }
 
@@ -497,22 +505,66 @@ class Lander {
         const left = midX - this.width / 2;
         const top = midY - this.height / 2;
 
+        ctx.save();
+
         // Hitbox (debug)
         if (DEBUG) {
             ctx.strokeStyle = 'white';
             ctx.strokeRect(left, top, this.width, this.height);
         }
 
-        // Fuel
-        if (!this.crashed && !this.landed) {
-            const fuelRatio = this.fuel / this.initialFuel;
-            ctx.fillStyle = `hsl(210 100% 50%)`;
-            ctx.fillRect(left, top - 5, this.width * fuelRatio, 5);
-        }
-
-        const rotateAngle = this.thrustDirection * 10;
+        const rotateAngle = this.thrustX * 100;
         ctx.translate(midX, midY);
         ctx.rotate(degToRad(rotateAngle));
+
+        // Thrust up
+        if (this.thrustY > 0) {
+            ctx.fillStyle = 'hsl(50 100% 50%)';
+            ctx.beginPath();
+            ctx.arc(
+                -this.width / 4,
+                this.height * 0.57,
+                this.width / 5,
+                0,
+                Math.PI * 2
+            );
+            ctx.arc(
+                this.width / 4,
+                this.height * 0.57,
+                this.width / 5,
+                0,
+                Math.PI * 2
+            );
+            ctx.fill();
+        }
+
+        // Thrust left
+        if (this.thrustX < 0) {
+            ctx.fillStyle = 'hsl(50 100% 50%)';
+            ctx.beginPath();
+            ctx.arc(
+                this.width / 4,
+                this.height * 0.57,
+                this.width / 5,
+                0,
+                Math.PI * 2
+            );
+            ctx.fill();
+        }
+
+        // Thrust right
+        if (this.thrustX > 0) {
+            ctx.fillStyle = 'hsl(50 100% 50%)';
+            ctx.beginPath();
+            ctx.arc(
+                -this.width / 4,
+                this.height * 0.57,
+                this.width / 5,
+                0,
+                Math.PI * 2
+            );
+            ctx.fill();
+        }
 
         // Sprite
         const img =
@@ -525,8 +577,14 @@ class Lander {
         const imgHeight = this.height;
         ctx.drawImage(img, imgX, imgY, imgWidth, imgHeight);
 
-        ctx.rotate(degToRad(-rotateAngle));
-        ctx.translate(-midX, -midY);
+        ctx.restore();
+
+        // Fuel
+        if (!this.crashed && !this.landed) {
+            const fuelRatio = this.fuel / this.initialFuel;
+            ctx.fillStyle = `hsl(210 100% 50%)`;
+            ctx.fillRect(left, top - 5, this.width * fuelRatio, 5);
+        }
     }
 }
 
