@@ -1,3 +1,5 @@
+const DEBUG = false;
+
 function main() {
     play().then(() =>
         window.addEventListener('keydown', () => main(), { once: true })
@@ -87,7 +89,6 @@ const play = () =>
             lander.draw(canvas, ctx);
 
             drawSpeed(ctx, lander);
-            drawFuel(ctx, lander);
 
             if (lander.crashed || lander.landed) {
                 clearInterval(interval);
@@ -305,24 +306,6 @@ function drawSpeed(ctx, lander) {
     ctx.fillText('Speed', x, 30);
 }
 
-function drawFuel(ctx, lander) {
-    const width = 300;
-    const height = 6;
-    const x = 20;
-    const y = 80;
-    const fuelRatio = lander.fuel / lander.initialFuel;
-
-    ctx.strokeStyle = 'white';
-    ctx.strokeRect(x, y, width, height);
-
-    ctx.fillStyle = 'hsl(220 100% 50%)';
-    ctx.fillRect(x, y, Math.min(width * fuelRatio, width), height);
-
-    ctx.fillStyle = 'white';
-    ctx.font = '14px sans-serif';
-    ctx.fillText('Fuel', x, 70);
-}
-
 function realToCanvasX(canvasWidth, x) {
     return x;
 }
@@ -464,23 +447,18 @@ class Lander {
         const midY = realToCanvasY(canvas.height, this.y);
         const left = midX - this.width / 2;
         const top = midY - this.height / 2;
-        const fuelRatio = this.fuel / this.initialFuel;
-        const fuelWidth = 5;
-        const fuelHeight = (1 - fuelRatio) * this.height;
 
         // Hitbox (debug)
-        ctx.strokeStyle = 'white';
-        ctx.strokeRect(left, top, this.width, this.height);
+        if (DEBUG) {
+            ctx.strokeStyle = 'white';
+            ctx.strokeRect(left, top, this.width, this.height);
+        }
 
         // Fuel
         if (!this.crashed && !this.landed) {
+            const fuelRatio = this.fuel / this.initialFuel;
             ctx.fillStyle = `hsl(210 100% 50%)`;
-            ctx.fillRect(
-                left + this.width + 10,
-                top + fuelHeight,
-                fuelWidth,
-                this.height - fuelHeight
-            );
+            ctx.fillRect(left, top - 5, this.width * fuelRatio, 5);
         }
 
         const rotateAngle = this.thrustDirection * 10;
