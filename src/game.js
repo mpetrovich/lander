@@ -176,13 +176,16 @@ function generateTerrain({
         jaggedness,
         hilliness,
     });
-    const landingPads = generateLandingPads({
-        vertices,
-        step,
-        landingPadWidth,
-        landingPadCount,
-        minDistanceFraction: 1 / 3,
-    });
+    let landingPads = [];
+    if (landingPadCount > 0) {
+        landingPads = generateLandingPads({
+            vertices,
+            step,
+            landingPadWidth,
+            landingPadCount,
+            minDistanceFraction: 1 / 3,
+        });
+    }
     const terrain = rasterizeTerrainPath(width, vertices);
     return [terrain, landingPads];
 }
@@ -219,30 +222,44 @@ function generateLandingPads({
     step,
     landingPadWidth,
     landingPadCount,
-    buffer = 0,
+    bufferVerticesCount = 2, // Number of vertices to leave free before and after landing pads
     minDistanceFraction = 0, // From left edge of terrain, as a fraction of the terrain width
 }) {
     const landingPads = [];
     const landingPadStepSize = Math.ceil(landingPadWidth / step) + 1;
-    for (let i = 0; i < landingPadCount; i++) {
-        const vi = Math.floor(
-            randomBias(
-                landingPadStepSize +
-                    buffer +
-                    minDistanceFraction * vertices.length,
-                vertices.length - landingPadStepSize - 1
-            )
+    const availableIndices = Array.from(vertices.keys()).slice(
+        minDistanceFraction * vertices.length,
+        -landingPadStepSize - bufferVerticesCount
+    );
+    for (let n = 0; n < landingPadCount; n++) {
+        const minAvailabilityIndex = bufferVerticesCount;
+        const maxAvailabilityIndex =
+            availableIndices.length -
+            landingPadStepSize -
+            bufferVerticesCount -
+            1;
+        const selectedAvailabilityIndex = randomIndex(
+            availableIndices.length,
+            minAvailabilityIndex,
+            maxAvailabilityIndex
         );
-        const landingPadStartVertex = vertices[vi];
-        const landingPadVertices = Array.from(
-            { length: landingPadStepSize },
-            () => undefined
-        ).map((vertex, i) => {
-            const x = landingPadStartVertex[0] + i * step;
-            const y = landingPadStartVertex[1];
-            return [x, y];
-        });
-        vertices.splice(vi, landingPadStepSize, ...landingPadVertices);
+        const vertexIndex = availableIndices[selectedAvailabilityIndex];
+        const landingPadStartVertex = vertices[vertexIndex];
+        for (let s = 0; s < landingPadStepSize; s++) {
+            vertices[vertexIndex + s] = [
+                landingPadStartVertex[0] + s * step,
+                landingPadStartVertex[1],
+            ];
+        }
+        availableIndices.splice(
+            Math.max(
+                0,
+                selectedAvailabilityIndex -
+                    landingPadStepSize -
+                    bufferVerticesCount
+            ),
+            landingPadStepSize * 2 + bufferVerticesCount * 3
+        );
         landingPads.push(landingPadStartVertex);
     }
     return landingPads;
@@ -388,7 +405,11 @@ function random(min, max) {
     return min + (max - min) * Math.random();
 }
 
-function randomBias(min, max, bias = 2) {
+function randomIndex(length, min = 0, max = length - 1) {
+    return clamp(0, Math.floor(random(min, max)), Math.max(0, length - 1));
+}
+
+function randomWithBias(min, max, bias = 2) {
     return min + (max - min) * Math.pow(Math.random(), bias);
 }
 
