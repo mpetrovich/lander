@@ -83,7 +83,7 @@ const play = () =>
             drawTerrain(canvas, ctx, midgroundTerrain, 'hsl(0 0% 15%)');
             drawTerrain(canvas, ctx, terrain, 'hsl(0 0% 50%)');
             drawLandingPads(canvas, ctx, landingPads, landingPadWidth);
-            lander.move(secondsPerFrame, terrain);
+            lander.move(secondsPerFrame, terrain, landingPads, landingPadWidth);
             lander.draw(canvas, ctx);
 
             drawSpeed(ctx, lander);
@@ -395,7 +395,7 @@ class Lander {
         this.images = images;
     }
 
-    move(seconds, terrain) {
+    move(seconds, terrain, landingPads, landingPadWidth) {
         const mass = this.mass + (this.fuel / this.initialFuel) * this.mass;
         this.accelerate(0, -mass * this.gravity * seconds);
 
@@ -407,7 +407,16 @@ class Lander {
             const landingSpeed = Math.sqrt(
                 this.velocityX ** 2 + this.velocityY ** 2
             );
-            if (landingSpeed <= this.maxLandingSpeed) {
+            const landerX = this.x;
+            const landerWidth = this.width;
+            if (
+                landingSpeed <= this.maxLandingSpeed &&
+                landingPads.some(
+                    ([padX, height]) =>
+                        padX <= landerX &&
+                        landerX + landerWidth / 2 <= padX + landingPadWidth
+                )
+            ) {
                 this.landed = true;
             } else {
                 this.crashed = true;
@@ -458,6 +467,10 @@ class Lander {
         const fuelRatio = this.fuel / this.initialFuel;
         const fuelWidth = 5;
         const fuelHeight = (1 - fuelRatio) * this.height;
+
+        // Hitbox (debug)
+        ctx.strokeStyle = 'white';
+        ctx.strokeRect(left, top, this.width, this.height);
 
         // Fuel
         if (!this.crashed && !this.landed) {
