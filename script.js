@@ -37,7 +37,7 @@ const play = () =>
         const [terrain, landingPads] = generateTerrain({
             width: canvas.width,
             heightRange: [50, 100],
-            minHeight: 20,
+            minHeight: 30,
             maxHeight: 500,
             step: 10,
             jaggedness: 10,
@@ -47,7 +47,7 @@ const play = () =>
         });
         images = loadImages({
             flying: 'img/apollo.png',
-            landed: 'img/apollo-landed.png',
+            landed: 'img/apollo.png',
             crashed: 'img/apollo-crashed.png',
         });
         const lander = new Lander({
@@ -72,6 +72,8 @@ const play = () =>
         let time = 0;
         let starfieldAngle = random(0, 360);
         const interval = setInterval(() => {
+            lander.move(secondsPerFrame, terrain, landingPads, landingPadWidth);
+
             drawBackground(canvas, ctx);
             drawStars({
                 canvas,
@@ -84,11 +86,8 @@ const play = () =>
             drawTerrain(canvas, ctx, backgroundTerrain, 'hsl(0 0% 10%)');
             drawTerrain(canvas, ctx, midgroundTerrain, 'hsl(0 0% 15%)');
             drawTerrain(canvas, ctx, terrain, 'hsl(0 0% 50%)');
-            drawLandingPads(canvas, ctx, landingPads, landingPadWidth);
-            lander.move(secondsPerFrame, terrain, landingPads, landingPadWidth);
+            drawLandingPads(canvas, ctx, landingPads, landingPadWidth, lander);
             lander.draw(canvas, ctx);
-
-            drawSpeed(ctx, lander);
 
             if (lander.crashed || lander.landed) {
                 clearInterval(interval);
@@ -276,34 +275,39 @@ function drawTerrain(canvas, ctx, terrain, color) {
     ctx.fill();
 }
 
-function drawLandingPads(canvas, ctx, landingPads, landingPadWidth) {
+function drawLandingPads(canvas, ctx, landingPads, landingPadWidth, lander) {
     landingPads.forEach(([x, height]) => {
-        ctx.fillStyle = 'yellow';
+        if (lander.landed && x <= lander.x && lander.x <= x + landingPadWidth) {
+            ctx.fillStyle = 'green';
+        } else if (lander.speed > lander.maxLandingSpeed) {
+            ctx.fillStyle = 'red';
+        } else if (lander.crashed) {
+            ctx.fillStyle = 'red';
+        } else {
+            ctx.fillStyle = 'yellow';
+        }
         ctx.fillRect(x, canvas.height - height, landingPadWidth, 5);
+
+        if (lander.speed > lander.maxLandingSpeed) {
+            ctx.fillStyle = 'rgb(150 0 0)';
+            ctx.font = 'bold 12px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(
+                'TOO FAST',
+                x + landingPadWidth / 2,
+                canvas.height - height + 20
+            );
+        } else if (lander.crashed) {
+            ctx.fillStyle = 'rgb(150 0 0)';
+            ctx.font = 'bold 12px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(
+                'CRASHED',
+                x + landingPadWidth / 2,
+                canvas.height - height + 20
+            );
+        }
     });
-}
-
-function drawSpeed(ctx, lander) {
-    const width = 300;
-    const maxSpeedWidth = width * 0.8;
-    const height = 6;
-    const x = 20;
-    const y = 40;
-    const speed = Math.sqrt(lander.velocityX ** 2 + lander.velocityY ** 2);
-    const speedRatio = speed / lander.maxLandingSpeed;
-
-    ctx.strokeStyle = 'white';
-    ctx.strokeRect(x, y, width, height);
-
-    ctx.fillStyle = speedRatio >= 1 ? 'red' : 'green';
-    ctx.fillRect(x, y, Math.min(maxSpeedWidth * speedRatio, width), height);
-
-    ctx.fillStyle = 'rgb(255 255 255 / 0.7)';
-    ctx.fillRect(maxSpeedWidth - 1, y, 2, height);
-
-    ctx.fillStyle = 'white';
-    ctx.font = '14px sans-serif';
-    ctx.fillText('Speed', x, 30);
 }
 
 function realToCanvasX(canvasWidth, x) {
@@ -376,6 +380,7 @@ class Lander {
         this.maxVelocityY = maxVelocityY;
         this.gravity = gravity;
         this.images = images;
+        this.speed = Math.sqrt(this.velocityX ** 2 + this.velocityY ** 2);
     }
 
     move(seconds, terrain, landingPads, landingPadWidth) {
@@ -387,13 +392,10 @@ class Lander {
             this.x = clamp(this.x + this.velocityX, this.minX, this.maxX);
             this.y = clamp(this.y + this.velocityY, this.minY, this.maxY);
         } else {
-            const landingSpeed = Math.sqrt(
-                this.velocityX ** 2 + this.velocityY ** 2
-            );
             const landerX = this.x;
             const landerWidth = this.width;
             if (
-                landingSpeed <= this.maxLandingSpeed &&
+                this.speed <= this.maxLandingSpeed &&
                 landingPads.some(
                     ([padX, height]) =>
                         padX <= landerX &&
@@ -440,6 +442,7 @@ class Lander {
             this.minVelocityY,
             this.maxVelocityY
         );
+        this.speed = Math.sqrt(this.velocityX ** 2 + this.velocityY ** 2);
     }
 
     draw(canvas, ctx) {
