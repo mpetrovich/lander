@@ -27,6 +27,11 @@ function main() {
         jaggedness: 10,
         hilliness: 0.8,
     });
+    images = loadImages({
+        flying: 'img/lander.png',
+        landed: 'img/lander-landed.png',
+        crashed: 'img/lander-crashed.png',
+    });
     const lander = new Lander({
         x: 50,
         y: canvas.height - 50,
@@ -38,13 +43,8 @@ function main() {
         thrustY: 0.1,
         maxLandingSpeed: 0.5,
         gravity: 9.8,
+        images,
     });
-
-    loadImages([
-        'img/lander.png',
-        'img/lander-landed.png',
-        'img/lander-crashed.png',
-    ]);
 
     const secondsPerFrame = 1 / 60;
     const interval = setInterval(() => {
@@ -83,11 +83,11 @@ function createCanvas() {
 
 function loadImages(srcs) {
     const images = {};
-    srcs.forEach((src) => {
-        const img = new Image();
-        img.src = src;
-        images[src] = img;
-    });
+    for (const [key, src] of Object.entries(srcs)) {
+        images[key] = new Image();
+        images[key].src = src;
+    }
+    return images;
 }
 
 function generateTerrain({
@@ -233,6 +233,10 @@ function round(value, precision) {
     return Math.round(value * 10 ** precision) / 10 ** precision;
 }
 
+function degToRad(degrees) {
+    return (degrees * Math.PI) / 180;
+}
+
 class Lander {
     constructor({
         x,
@@ -255,6 +259,7 @@ class Lander {
         minVelocityY = -Infinity,
         maxVelocityY = Infinity,
         gravity = 9.8,
+        images,
     }) {
         this.x = x;
         this.y = y;
@@ -277,6 +282,7 @@ class Lander {
         this.minVelocityY = minVelocityY;
         this.maxVelocityY = maxVelocityY;
         this.gravity = gravity;
+        this.images = images;
     }
 
     move(seconds, terrain) {
@@ -317,6 +323,7 @@ class Lander {
         this.fuel = clamp(this.fuel - Math.abs(dx) - Math.abs(dy), 0, Infinity);
         if (this.fuel > 0) {
             this.accelerate(dx, dy);
+            this.thrustDirection = dx === 0 ? 0 : dx > 0 ? 1 : -1;
         }
     }
 
@@ -353,14 +360,23 @@ class Lander {
             );
         }
 
+        const rotateAngle = this.thrustDirection * 10;
+        ctx.translate(midX, midY);
+        ctx.rotate(degToRad(rotateAngle));
+
         // Sprite
-        const img = new Image();
-        img.src = this.landed
-            ? 'img/lander-landed.png'
-            : this.crashed
-            ? 'img/lander-crashed.png'
-            : 'img/lander.png';
-        ctx.drawImage(img, left, top, this.width, this.height);
+        const img =
+            this.images[
+                this.crashed ? 'crashed' : this.landed ? 'landed' : 'flying'
+            ];
+        const imgX = -this.width / 2;
+        const imgY = -this.height / 2;
+        const imgWidth = this.width;
+        const imgHeight = this.height;
+        ctx.drawImage(img, imgX, imgY, imgWidth, imgHeight);
+
+        ctx.rotate(degToRad(-rotateAngle));
+        ctx.translate(-midX, -midY);
     }
 }
 
