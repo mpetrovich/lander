@@ -4,6 +4,8 @@ function main() {
     resizeCanvas(canvas);
     window.addEventListener('resize', () => resizeCanvas(canvas));
 
+    const stars = generateStars(canvas.width, canvas.height, 1000);
+
     const backgroundTerrain = generateTerrain({
         width: canvas.width,
         heightRange: [200, 300],
@@ -53,6 +55,7 @@ function main() {
     const secondsPerFrame = 1 / 60;
     const interval = setInterval(() => {
         drawBackground(canvas, ctx);
+        drawStars(canvas, ctx, stars);
         drawTerrain(canvas, ctx, backgroundTerrain, 'hsl(0 0% 10%)');
         drawTerrain(canvas, ctx, midgroundTerrain, 'hsl(0 0% 15%)');
         drawTerrain(canvas, ctx, terrain, 'hsl(0 0% 50%)');
@@ -167,9 +170,24 @@ function rasterizeTerrainPath(width, vertices) {
     return terrain;
 }
 
+function generateStars(width, height, numStars) {
+    const stars = Array.from({ length: numStars }, () => [
+        random(0, width),
+        random(0, height),
+    ]);
+    return stars;
+}
+
 function drawBackground(canvas, ctx) {
     ctx.fillStyle = 'black';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+}
+
+function drawStars(canvas, ctx, stars) {
+    stars.forEach(([x, y]) => {
+        ctx.fillStyle = `rgb(255 255 255 / ${random(0.5, 0.8)})`;
+        ctx.fillRect(x, y, 1, 1);
+    });
 }
 
 function drawTerrain(canvas, ctx, terrain, color) {
