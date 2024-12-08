@@ -31,6 +31,7 @@ const play = () =>
         const stars = generateStars(canvas.width, canvas.height, 1000);
 
         const landingPadWidth = 80;
+        const turretWidth = 60;
         const [backgroundTerrain] = generateTerrain({
             width: canvas.width,
             heightRange: [200, 300],
@@ -49,7 +50,7 @@ const play = () =>
             jaggedness: 10,
             hilliness: 0.5,
         });
-        const [terrain, landingPads] = generateTerrain({
+        const [terrain, landingPads, turrets] = generateTerrain({
             width: canvas.width,
             heightRange: [50, 100],
             minHeight: 30,
@@ -59,6 +60,8 @@ const play = () =>
             hilliness: 0.8,
             landingPadCount: 1,
             landingPadWidth,
+            turretCount: 1,
+            turretWidth,
         });
         images = loadImages({
             flying: 'img/rocket.png',
@@ -103,6 +106,7 @@ const play = () =>
             drawTerrain(canvas, ctx, midgroundTerrain, 'hsl(0 0% 15%)');
             drawTerrain(canvas, ctx, terrain, 'hsl(0 0% 50%)');
             drawLandingPads(canvas, ctx, landingPads, landingPadWidth, lander);
+            drawTurrets(canvas, ctx, turrets, turretWidth);
             lander.draw(canvas, ctx);
             drawScore({ canvas, ctx, score });
 
@@ -166,6 +170,8 @@ function generateTerrain({
     hilliness,
     landingPadCount = 0,
     landingPadWidth,
+    turretCount = 0,
+    turretWidth,
 }) {
     const vertices = generateTerrainPath({
         width,
@@ -176,17 +182,26 @@ function generateTerrain({
         jaggedness,
         hilliness,
     });
-    let landingPads = [];
-    if (landingPadCount > 0) {
-        landingPads = generateTerrainObjects({
-            vertices,
-            count: landingPadCount,
-            width: Math.ceil(landingPadWidth / stepWidth) + 1,
-            minDistance: vertices.length / 3,
-        });
-    }
+    const landingPads =
+        landingPadCount > 0
+            ? generateTerrainObjects({
+                  vertices,
+                  count: landingPadCount,
+                  width: Math.ceil(landingPadWidth / stepWidth) + 1,
+                  minDistance: vertices.length / 3,
+              })
+            : [];
+    const turrets =
+        turretCount > 0
+            ? generateTerrainObjects({
+                  vertices,
+                  count: turretCount,
+                  width: Math.ceil(turretWidth / stepWidth) + 1,
+                  minDistance: vertices.length / 3,
+              })
+            : [];
     const terrain = rasterizeTerrainPath(width, vertices);
-    return [terrain, landingPads];
+    return [terrain, landingPads, turrets];
 }
 
 function generateTerrainPath({
@@ -365,6 +380,22 @@ function drawLandingPads(canvas, ctx, landingPads, landingPadWidth, lander) {
                 canvas.height - height + 20
             );
         }
+    });
+}
+
+function drawTurrets(canvas, ctx, turrets, turretWidth) {
+    ctx.fillStyle = 'hsl(0 0% 30%)';
+    turrets.forEach(([x, height]) => {
+        // Draw hemisphere
+        ctx.beginPath();
+        ctx.arc(
+            x + turretWidth / 2,
+            canvas.height - height,
+            turretWidth / 2,
+            Math.PI,
+            Math.PI * 2
+        );
+        ctx.fill();
     });
 }
 
