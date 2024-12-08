@@ -1,4 +1,7 @@
 const DEBUG = false;
+const GRAVITY_EARTH = 9.8;
+const GRAVITY_MOON = 1.625;
+const GRAVITY_JUPITER = 24.79;
 let score = 0;
 
 function main() {
@@ -69,12 +72,12 @@ const play = () =>
             y: canvas.height - 100,
             velocityX: 0.4,
             velocityY: 0.2,
-            mass: 0.01,
+            mass: 0.03,
             fuel: 12,
             thrustX: 0.05,
             thrustY: 0.1,
             maxLandingSpeed: 0.5,
-            gravity: 9.8,
+            gravity: GRAVITY_MOON,
             images,
         });
 
@@ -173,7 +176,10 @@ function generateTerrain({
     const landingPadStepSize = Math.ceil(landingPadWidth / step) + 1;
     for (let i = 0; i < landingPadCount; i++) {
         const vi = Math.floor(
-            random(landingPadStepSize, vertices.length - landingPadStepSize - 1)
+            randomBias(
+                landingPadStepSize,
+                vertices.length - landingPadStepSize - 1
+            )
         );
         const landingPadStartVertex = vertices[vi];
         const landingPadVertices = Array.from(
@@ -357,6 +363,10 @@ function clamp(value, min, max) {
 
 function random(min, max) {
     return min + (max - min) * Math.random();
+}
+
+function randomBias(min, max, bias = 2) {
+    return min + (max - min) * Math.pow(Math.random(), bias);
 }
 
 function round(value, precision) {
