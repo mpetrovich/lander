@@ -306,6 +306,15 @@ function drawLandingPads(canvas, ctx, landingPads, landingPadWidth, lander) {
                 x + landingPadWidth / 2,
                 canvas.height - height + 20
             );
+        } else if (lander.landed) {
+            ctx.fillStyle = 'rgb(0 100 0)';
+            ctx.font = 'bold 12px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(
+                'SUCCESS!',
+                x + landingPadWidth / 2,
+                canvas.height - height + 20
+            );
         }
     });
 }
