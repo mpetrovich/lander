@@ -1,86 +1,100 @@
 function main() {
-    const { canvas, ctx } = createCanvas();
-
-    resizeCanvas(canvas);
-    window.addEventListener('resize', () => resizeCanvas(canvas));
-
-    const stars = generateStars(canvas.width, canvas.height, 1000);
-
-    const backgroundTerrain = generateTerrain({
-        width: canvas.width,
-        heightRange: [200, 300],
-        minHeight: 20,
-        maxHeight: 500,
-        step: 20,
-        jaggedness: 20,
-        hilliness: 0.5,
-    });
-    const midgroundTerrain = generateTerrain({
-        width: canvas.width,
-        heightRange: [100, 300],
-        minHeight: 20,
-        maxHeight: 500,
-        step: 20,
-        jaggedness: 10,
-        hilliness: 0.5,
-    });
-    const terrain = generateTerrain({
-        width: canvas.width,
-        heightRange: [50, 100],
-        minHeight: 20,
-        maxHeight: 500,
-        step: 10,
-        jaggedness: 10,
-        hilliness: 0.8,
-    });
-    images = loadImages({
-        flying: 'img/lander.png',
-        landed: 'img/lander-landed.png',
-        crashed: 'img/lander-crashed.png',
-    });
-    const lander = new Lander({
-        x: 50,
-        y: canvas.height - 50,
-        velocityX: 0.3,
-        velocityY: 0.3,
-        mass: 0.01,
-        fuel: 12,
-        thrustX: 0.05,
-        thrustY: 0.1,
-        maxLandingSpeed: 0.5,
-        gravity: 9.8,
-        images,
-    });
-
-    const secondsPerFrame = 1 / 60;
-    const interval = setInterval(() => {
-        drawBackground(canvas, ctx);
-        drawStars(canvas, ctx, stars);
-        drawTerrain(canvas, ctx, backgroundTerrain, 'hsl(0 0% 10%)');
-        drawTerrain(canvas, ctx, midgroundTerrain, 'hsl(0 0% 15%)');
-        drawTerrain(canvas, ctx, terrain, 'hsl(0 0% 50%)');
-        lander.move(secondsPerFrame, terrain);
-        lander.draw(canvas, ctx);
-
-        drawSpeed(ctx, lander);
-        drawFuel(ctx, lander);
-        if (lander.crashed || lander.landed) {
-            clearInterval(interval);
-        }
-    }, secondsPerFrame);
-
-    document.addEventListener('keydown', (event) => {
-        if (event.key === 'ArrowUp') {
-            lander.thrustUp();
-        }
-        if (event.key === 'ArrowLeft') {
-            lander.thrustLeft();
-        }
-        if (event.key === 'ArrowRight') {
-            lander.thrustRight();
-        }
-    });
+    play().then(() =>
+        window.addEventListener('keydown', () => main(), { once: true })
+    );
 }
+
+const play = () =>
+    new Promise((resolve, reject) => {
+        const { canvas, ctx } = createCanvas();
+
+        resizeCanvas(canvas);
+        window.addEventListener('resize', () => resizeCanvas(canvas));
+
+        const stars = generateStars(canvas.width, canvas.height, 1000);
+
+        const landingPadWidth = 80;
+        const [backgroundTerrain] = generateTerrain({
+            width: canvas.width,
+            heightRange: [200, 300],
+            minHeight: 20,
+            maxHeight: 500,
+            step: 20,
+            jaggedness: 20,
+            hilliness: 0.5,
+        });
+        const [midgroundTerrain] = generateTerrain({
+            width: canvas.width,
+            heightRange: [100, 300],
+            minHeight: 20,
+            maxHeight: 500,
+            step: 20,
+            jaggedness: 10,
+            hilliness: 0.5,
+        });
+        const [terrain, landingPads] = generateTerrain({
+            width: canvas.width,
+            heightRange: [50, 100],
+            minHeight: 20,
+            maxHeight: 500,
+            step: 10,
+            jaggedness: 10,
+            hilliness: 0.8,
+            landingPadCount: 1,
+            landingPadWidth,
+        });
+        images = loadImages({
+            flying: 'img/lander.png',
+            landed: 'img/lander-landed.png',
+            crashed: 'img/lander-crashed.png',
+        });
+        const lander = new Lander({
+            x: 50,
+            y: canvas.height - 50,
+            velocityX: 0.3,
+            velocityY: 0.3,
+            mass: 0.01,
+            fuel: 12,
+            thrustX: 0.05,
+            thrustY: 0.1,
+            maxLandingSpeed: 0.5,
+            gravity: 9.8,
+            images,
+        });
+
+        const secondsPerFrame = 1 / 60;
+        const interval = setInterval(() => {
+            drawBackground(canvas, ctx);
+            drawStars(canvas, ctx, stars);
+            drawTerrain(canvas, ctx, backgroundTerrain, 'hsl(0 0% 10%)');
+            drawTerrain(canvas, ctx, midgroundTerrain, 'hsl(0 0% 15%)');
+            drawTerrain(canvas, ctx, terrain, 'hsl(0 0% 50%)');
+            drawLandingPads(canvas, ctx, landingPads, landingPadWidth);
+            lander.move(secondsPerFrame, terrain);
+            lander.draw(canvas, ctx);
+
+            drawSpeed(ctx, lander);
+            drawFuel(ctx, lander);
+
+            if (lander.crashed || lander.landed) {
+                clearInterval(interval);
+                resolve();
+                return;
+            }
+        }, secondsPerFrame);
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'ArrowUp') {
+                lander.thrustUp();
+            }
+            if (event.key === 'ArrowLeft') {
+                lander.thrustLeft();
+            }
+            if (event.key === 'ArrowRight') {
+                lander.thrustRight();
+            }
+        });
+    });
 
 function createCanvas() {
     const canvas = document.getElementById('canvas');
@@ -110,6 +124,8 @@ function generateTerrain({
     step,
     jaggedness,
     hilliness,
+    landingPadCount = 0,
+    landingPadWidth,
 }) {
     const vertices = generateTerrainPath({
         width,
@@ -120,7 +136,28 @@ function generateTerrain({
         jaggedness,
         hilliness,
     });
-    return rasterizeTerrainPath(width, vertices);
+
+    const landingPads = [];
+    const landingPadStepSize = Math.ceil(landingPadWidth / step) + 1;
+    for (let i = 0; i < landingPadCount; i++) {
+        const vi = Math.floor(
+            random(landingPadStepSize, vertices.length - landingPadStepSize - 1)
+        );
+        const landingPadStartVertex = vertices[vi];
+        const landingPadVertices = Array.from(
+            { length: landingPadStepSize },
+            () => undefined
+        ).map((vertex, i) => {
+            const x = landingPadStartVertex[0] + i * step;
+            const y = landingPadStartVertex[1];
+            return [x, y];
+        });
+        vertices.splice(vi, landingPadStepSize, ...landingPadVertices);
+        landingPads.push(landingPadStartVertex);
+    }
+
+    const terrain = rasterizeTerrainPath(width, vertices);
+    return [terrain, landingPads];
 }
 
 function generateTerrainPath({
@@ -151,7 +188,7 @@ function generateTerrainPath({
 }
 
 function rasterizeTerrainPath(width, vertices) {
-    const terrain = Array.from({ length: width + 1 }, () => undefined);
+    const terrain = Array.from({ length: width }, () => 0);
     let startVertex = vertices.shift();
     let endVertex = vertices.shift();
     for (let x = 0; x <= width; x++) {
@@ -193,13 +230,20 @@ function drawStars(canvas, ctx, stars) {
 function drawTerrain(canvas, ctx, terrain, color) {
     ctx.fillStyle = color;
     ctx.beginPath();
-    ctx.moveTo(0, canvas.height - terrain[0][1]);
+    ctx.moveTo(0, canvas.height - terrain[0]);
     terrain.slice(1).forEach((height, x) => {
         ctx.lineTo(x, canvas.height - height);
     });
     ctx.lineTo(canvas.width, canvas.height);
     ctx.lineTo(0, canvas.height);
     ctx.fill();
+}
+
+function drawLandingPads(canvas, ctx, landingPads, landingPadWidth) {
+    landingPads.forEach(([x, height]) => {
+        ctx.fillStyle = 'yellow';
+        ctx.fillRect(x, canvas.height - height, landingPadWidth, 5);
+    });
 }
 
 function drawSpeed(ctx, lander) {
