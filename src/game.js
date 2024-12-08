@@ -83,7 +83,7 @@ const play = () =>
         });
 
         const secondsPerFrame = 1 / 60;
-        const starfieldPrecession = random(-0.01, 0.01);
+        const starfieldPrecession = random(-0.005, 0.005);
         const starfieldSpeed = random(1, 5);
         let time = 0;
         let starfieldAngle = random(0, 360);
@@ -182,7 +182,7 @@ function generateTerrain({
     for (let i = 0; i < landingPadCount; i++) {
         const vi = Math.floor(
             randomBias(
-                landingPadStepSize,
+                landingPadStepSize + vertices.length / 3,
                 vertices.length - landingPadStepSize - 1
             )
         );
