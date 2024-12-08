@@ -60,7 +60,7 @@ const play = () =>
             hilliness: 0.8,
             landingPadCount: 1,
             landingPadWidth,
-            turretCount: 1,
+            turretCount: 0,
             turretWidth,
         });
         images = loadImages({
@@ -124,7 +124,7 @@ const play = () =>
         }, secondsPerFrame);
 
         document.addEventListener('keydown', (event) => {
-            if (event.key === 'ArrowUp') {
+            if (event.key === 'ArrowUp' || event.key === ' ') {
                 lander.thrustUp();
             }
             if (event.key === 'ArrowLeft') {
