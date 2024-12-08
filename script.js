@@ -61,13 +61,14 @@ const play = () =>
             landingPadWidth,
         });
         images = loadImages({
-            flying: 'img/apollo.png',
-            landed: 'img/apollo.png',
-            crashed: 'img/apollo-crashed.png',
+            flying: 'img/rocket.png',
+            landed: 'img/rocket.png',
+            crashed: 'img/rocket-crashed.png',
         });
         const lander = new Lander({
-            width: 512 / 10,
-            height: 487 / 10,
+            width: 100 / 3,
+            height: 150 / 3,
+            offsetY: 0,
             x: 50,
             y: canvas.height - 100,
             velocityX: 0.4,
@@ -388,6 +389,7 @@ class Lander {
         maxLandingSpeed,
         width,
         height,
+        offsetY = 0,
         minX = 0,
         maxX = Infinity,
         minY = 0,
@@ -411,6 +413,7 @@ class Lander {
         this.maxLandingSpeed = maxLandingSpeed;
         this.width = width;
         this.height = height;
+        this.offsetY = offsetY;
         this.minX = minX;
         this.maxX = maxX;
         this.minY = minY;
@@ -516,9 +519,8 @@ class Lander {
             this.images[
                 this.crashed ? 'crashed' : this.landed ? 'landed' : 'flying'
             ];
-        const offsetY = 10;
         const imgX = -this.width / 2;
-        const imgY = -this.height / 2 + offsetY;
+        const imgY = -this.height / 2 + this.offsetY;
         const imgWidth = this.width;
         const imgHeight = this.height;
         ctx.drawImage(img, imgX, imgY, imgWidth, imgHeight);
