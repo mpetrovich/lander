@@ -1,9 +1,21 @@
 const DEBUG = false;
+let score = 0;
 
 function main() {
-    play().then(() =>
-        window.addEventListener('keydown', () => main(), { once: true })
-    );
+    play()
+        .then(({ lander }) => {
+            const points = calculatePoints(lander);
+            score += points;
+        })
+        .catch(() => {})
+        .finally(() =>
+            window.addEventListener('keydown', () => main(), { once: true })
+        );
+}
+
+function calculatePoints(lander) {
+    const points = Math.round((lander.fuel / lander.initialFuel) * 100);
+    return points;
 }
 
 const play = () =>
@@ -54,9 +66,9 @@ const play = () =>
             width: 512 / 10,
             height: 487 / 10,
             x: 50,
-            y: canvas.height - 50,
-            velocityX: 0.3,
-            velocityY: 0.3,
+            y: canvas.height - 100,
+            velocityX: 0.4,
+            velocityY: 0.2,
             mass: 0.01,
             fuel: 12,
             thrustX: 0.05,
@@ -88,10 +100,15 @@ const play = () =>
             drawTerrain(canvas, ctx, terrain, 'hsl(0 0% 50%)');
             drawLandingPads(canvas, ctx, landingPads, landingPadWidth, lander);
             lander.draw(canvas, ctx);
+            drawScore({ canvas, ctx, score });
 
             if (lander.crashed || lander.landed) {
                 clearInterval(interval);
-                resolve();
+                if (lander.landed) {
+                    resolve({ lander, time });
+                } else {
+                    reject();
+                }
                 return;
             }
             time += secondsPerFrame;
@@ -302,7 +319,7 @@ function drawLandingPads(canvas, ctx, landingPads, landingPadWidth, lander) {
             ctx.font = 'bold 12px sans-serif';
             ctx.textAlign = 'center';
             ctx.fillText(
-                'CRASHED',
+                'OFF TARGET',
                 x + landingPadWidth / 2,
                 canvas.height - height + 20
             );
@@ -317,6 +334,13 @@ function drawLandingPads(canvas, ctx, landingPads, landingPadWidth, lander) {
             );
         }
     });
+}
+
+function drawScore({ canvas, ctx, score }) {
+    ctx.fillStyle = 'white';
+    ctx.font = 'bold 14px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(`Score: ${score}`, 30, 30);
 }
 
 function realToCanvasX(canvasWidth, x) {
