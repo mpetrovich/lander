@@ -36,7 +36,7 @@ const play = () =>
             heightRange: [200, 300],
             minHeight: 20,
             maxHeight: 500,
-            step: 20,
+            stepWidth: 20,
             jaggedness: 20,
             hilliness: 0.5,
         });
@@ -45,7 +45,7 @@ const play = () =>
             heightRange: [100, 300],
             minHeight: 20,
             maxHeight: 500,
-            step: 20,
+            stepWidth: 20,
             jaggedness: 10,
             hilliness: 0.5,
         });
@@ -54,7 +54,7 @@ const play = () =>
             heightRange: [50, 100],
             minHeight: 30,
             maxHeight: 500,
-            step: 10,
+            stepWidth: 10,
             jaggedness: 10,
             hilliness: 0.8,
             landingPadCount: 1,
@@ -161,7 +161,7 @@ function generateTerrain({
     heightRange,
     minHeight,
     maxHeight,
-    step,
+    stepWidth,
     jaggedness,
     hilliness,
     landingPadCount = 0,
@@ -172,18 +172,17 @@ function generateTerrain({
         heightRange,
         minHeight,
         maxHeight,
-        step,
+        stepWidth,
         jaggedness,
         hilliness,
     });
     let landingPads = [];
     if (landingPadCount > 0) {
-        landingPads = generateLandingPads({
+        landingPads = generateTerrainObjects({
             vertices,
-            step,
-            landingPadWidth,
-            landingPadCount,
-            minDistanceFraction: 1 / 3,
+            count: landingPadCount,
+            width: Math.ceil(landingPadWidth / stepWidth) + 1,
+            minDistance: vertices.length / 3,
         });
     }
     const terrain = rasterizeTerrainPath(width, vertices);
@@ -195,7 +194,7 @@ function generateTerrainPath({
     heightRange,
     minHeight,
     maxHeight,
-    step,
+    stepWidth,
     jaggedness,
     hilliness,
 }) {
@@ -205,7 +204,7 @@ function generateTerrainPath({
             lastHeight = random(heightRange[0], heightRange[1]),
             slopeBias = 0;
         x <= width;
-        x += step
+        x += stepWidth
     ) {
         lastSlopeBias = slopeBias;
         slopeBias = random(-1, 1) + lastSlopeBias * hilliness;
@@ -217,52 +216,39 @@ function generateTerrainPath({
     return vertices;
 }
 
-function generateLandingPads({
+function generateTerrainObjects({
     vertices,
-    step,
-    landingPadWidth,
-    landingPadCount,
-    bufferVerticesCount = 2, // Number of vertices to leave free before and after landing pads
-    minDistanceFraction = 0, // From left edge of terrain, as a fraction of the terrain width
+    count, // Number of objects
+    width, // Width of each object, in number of vertices
+    bufferWidth = 2, // Number of vertices to leave free before and after objects
+    minDistance = 0, // Minimum distance from the left edge of the terrain, in number of vertices
 }) {
-    const landingPads = [];
-    const landingPadStepSize = Math.ceil(landingPadWidth / step) + 1;
+    const objects = [];
     const availableIndices = Array.from(vertices.keys()).slice(
-        minDistanceFraction * vertices.length,
-        -landingPadStepSize - bufferVerticesCount
+        minDistance,
+        -width - bufferWidth
     );
-    for (let n = 0; n < landingPadCount; n++) {
-        const minAvailabilityIndex = bufferVerticesCount;
+    for (let n = 0; n < count; n++) {
+        const minAvailabilityIndex = bufferWidth;
         const maxAvailabilityIndex =
-            availableIndices.length -
-            landingPadStepSize -
-            bufferVerticesCount -
-            1;
+            availableIndices.length - width - bufferWidth - 1;
         const selectedAvailabilityIndex = randomIndex(
             availableIndices.length,
             minAvailabilityIndex,
             maxAvailabilityIndex
         );
         const vertexIndex = availableIndices[selectedAvailabilityIndex];
-        const landingPadStartVertex = vertices[vertexIndex];
-        for (let s = 0; s < landingPadStepSize; s++) {
-            vertices[vertexIndex + s] = [
-                landingPadStartVertex[0] + s * step,
-                landingPadStartVertex[1],
-            ];
+        const startVertex = vertices[vertexIndex];
+        for (let s = 0; s < width; s++) {
+            vertices[vertexIndex + s][1] = startVertex[1];
         }
         availableIndices.splice(
-            Math.max(
-                0,
-                selectedAvailabilityIndex -
-                    landingPadStepSize -
-                    bufferVerticesCount
-            ),
-            landingPadStepSize * 2 + bufferVerticesCount * 3
+            Math.max(0, selectedAvailabilityIndex - width - bufferWidth),
+            width * 2 + bufferWidth * 3
         );
-        landingPads.push(landingPadStartVertex);
+        objects.push(startVertex);
     }
-    return landingPads;
+    return objects;
 }
 
 function rasterizeTerrainPath(width, vertices) {
