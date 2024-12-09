@@ -33,6 +33,7 @@ const play = () =>
         const terrainWidth = canvas.width;
         const landingPadWidth = 80;
         const turretWidth = 60;
+        const turretCount = 1;
         const [backgroundTerrain] = generateTerrain({
             width: terrainWidth,
             heightRange: [200, 300],
@@ -62,11 +63,12 @@ const play = () =>
             landingPadCount: 1,
             landingPadEvery: terrainWidth,
             landingPadWidth,
-            turretCount: 0,
+            turretCount,
             turretWidth,
             turretEvery: terrainWidth / 3,
         });
-        images = loadImages({
+        const projectiles = [];
+        const images = loadImages({
             flying: 'img/rocket.png',
             landed: 'img/rocket.png',
             crashed: 'img/rocket-crashed.png',
@@ -92,10 +94,55 @@ const play = () =>
         const starfieldPrecession = random(-0.005, 0.005);
         const starfieldSpeed = random(1, 5);
         let time = 0;
+        let frames = 0;
         let starfieldAngle = random(0, 360);
 
         const interval = setInterval(() => {
+            const angleToLander = Math.atan2(
+                lander.y - turrets[0][1],
+                lander.x - turrets[0][0]
+            );
+            if (frames % 500 === 0) {
+                projectiles.push(
+                    new Projectile({
+                        turret: turrets[0],
+                        turretWidth,
+                        thickness: 4,
+                        length: 15,
+                        speed: 50,
+                        angle: angleToLander,
+                    })
+                );
+            }
+            if (frames % 500 === 50) {
+                projectiles.push(
+                    new Projectile({
+                        turret: turrets[0],
+                        turretWidth,
+                        thickness: 4,
+                        length: 15,
+                        speed: 50,
+                        angle: angleToLander,
+                    })
+                );
+            }
+            if (frames % 500 === 100) {
+                projectiles.push(
+                    new Projectile({
+                        turret: turrets[0],
+                        turretWidth,
+                        thickness: 4,
+                        length: 15,
+                        speed: 50,
+                        angle: angleToLander,
+                    })
+                );
+            }
+
             lander.move(secondsPerFrame, terrain, landingPads, landingPadWidth);
+            projectiles.forEach((projectile) => {
+                projectile.move(secondsPerFrame);
+            });
 
             drawBackground(canvas, ctx);
             drawStars({
@@ -112,6 +159,7 @@ const play = () =>
             drawLandingPads(canvas, ctx, landingPads, landingPadWidth, lander);
             drawTurrets(canvas, ctx, turrets, turretWidth);
             lander.draw(canvas, ctx);
+            drawProjectiles(canvas, ctx, projectiles);
             drawScore({ canvas, ctx, score });
 
             if (lander.crashed || lander.landed) {
@@ -124,6 +172,7 @@ const play = () =>
                 return;
             }
             time += secondsPerFrame;
+            frames++;
             starfieldAngle += starfieldPrecession;
         }, secondsPerFrame);
 
@@ -411,6 +460,12 @@ function drawTurrets(canvas, ctx, turrets, turretWidth) {
     });
 }
 
+function drawProjectiles(canvas, ctx, projectiles) {
+    projectiles.forEach((projectile) => {
+        projectile.draw(canvas, ctx);
+    });
+}
+
 function drawScore({ canvas, ctx, score }) {
     ctx.fillStyle = 'white';
     ctx.font = 'bold 14px sans-serif';
@@ -653,6 +708,36 @@ class Lander {
             ctx.fillStyle = `hsl(210 100% 50%)`;
             ctx.fillRect(left, top - 5, this.width * fuelRatio, 5);
         }
+    }
+}
+
+class Projectile {
+    constructor({ turret, turretWidth, thickness, length, speed, angle }) {
+        this.x = turret[0] + turretWidth / 2 - thickness / 2;
+        this.y = turret[1] + turretWidth / 2 - thickness / 2;
+        this.thickness = thickness;
+        this.length = length;
+        this.speed = speed;
+        this.angle = angle;
+    }
+
+    move(seconds) {
+        this.x += this.speed * Math.cos(this.angle) * seconds;
+        this.y += this.speed * Math.sin(this.angle) * seconds;
+    }
+
+    draw(canvas, ctx) {
+        ctx.save();
+        ctx.translate(this.x, canvas.height - this.y);
+        ctx.rotate(degToRad(90) - this.angle);
+        ctx.fillStyle = 'yellow';
+        ctx.fillRect(
+            -this.thickness / 2,
+            -this.length / 2,
+            this.thickness,
+            this.length
+        );
+        ctx.restore();
     }
 }
 
