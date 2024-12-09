@@ -30,10 +30,11 @@ const play = () =>
 
         const stars = generateStars(canvas.width, canvas.height, 1000);
 
+        const terrainWidth = canvas.width;
         const landingPadWidth = 80;
         const turretWidth = 60;
         const [backgroundTerrain] = generateTerrain({
-            width: canvas.width,
+            width: terrainWidth,
             heightRange: [200, 300],
             minHeight: 20,
             maxHeight: 500,
@@ -42,7 +43,7 @@ const play = () =>
             hilliness: 0.5,
         });
         const [midgroundTerrain] = generateTerrain({
-            width: canvas.width,
+            width: terrainWidth,
             heightRange: [100, 300],
             minHeight: 20,
             maxHeight: 500,
@@ -51,7 +52,7 @@ const play = () =>
             hilliness: 0.5,
         });
         const [terrain, landingPads, turrets] = generateTerrain({
-            width: canvas.width,
+            width: terrainWidth,
             heightRange: [50, 100],
             minHeight: 30,
             maxHeight: 500,
@@ -59,9 +60,11 @@ const play = () =>
             jaggedness: 10,
             hilliness: 0.8,
             landingPadCount: 1,
+            landingPadEvery: terrainWidth,
             landingPadWidth,
             turretCount: 0,
             turretWidth,
+            turretEvery: terrainWidth / 3,
         });
         images = loadImages({
             flying: 'img/rocket.png',
@@ -90,6 +93,7 @@ const play = () =>
         const starfieldSpeed = random(1, 5);
         let time = 0;
         let starfieldAngle = random(0, 360);
+
         const interval = setInterval(() => {
             lander.move(secondsPerFrame, terrain, landingPads, landingPadWidth);
 
@@ -170,8 +174,10 @@ function generateTerrain({
     hilliness,
     landingPadCount = 0,
     landingPadWidth,
+    landingPadEvery = width,
     turretCount = 0,
     turretWidth,
+    turretEvery = width,
 }) {
     const vertices = generateTerrainPath({
         width,
@@ -188,7 +194,8 @@ function generateTerrain({
                   vertices,
                   count: landingPadCount,
                   width: Math.ceil(landingPadWidth / stepWidth) + 1,
-                  minDistance: vertices.length / 3,
+                  minDistance: Math.floor(landingPadEvery / stepWidth / 3),
+                  maxDistance: Math.floor(landingPadEvery / stepWidth),
               })
             : [];
     const turrets =
@@ -197,7 +204,8 @@ function generateTerrain({
                   vertices,
                   count: turretCount,
                   width: Math.ceil(turretWidth / stepWidth) + 1,
-                  minDistance: vertices.length / 3,
+                  minDistance: Math.floor(turretEvery / stepWidth / 3),
+                  maxDistance: Math.floor(turretEvery / stepWidth),
               })
             : [];
     const terrain = rasterizeTerrainPath(width, vertices);
@@ -237,11 +245,15 @@ function generateTerrainObjects({
     width, // Width of each object, in number of vertices
     bufferWidth = 2, // Number of vertices to leave free before and after objects
     minDistance = 0, // Minimum distance from the left edge of the terrain, in number of vertices
+    maxDistance = Infinity, // Maximum distance from the left edge of the terrain, in number of vertices
 }) {
     const objects = [];
     const availableIndices = Array.from(vertices.keys()).slice(
         minDistance,
-        -width - bufferWidth
+        Math.min(
+            maxDistance - bufferWidth,
+            vertices.length - width - bufferWidth
+        )
     );
     for (let n = 0; n < count; n++) {
         const minAvailabilityIndex = bufferWidth;
