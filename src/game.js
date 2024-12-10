@@ -243,7 +243,7 @@ const play = () =>
                 if (lander.landed) {
                     resolve({ lander, time });
                 } else {
-                    reject();
+                    drawExplosion(canvas, ctx, lander.x, lander.y, reject);
                 }
                 return;
             }
@@ -529,6 +529,27 @@ function drawScore({ canvas, ctx, score }) {
     ctx.font = 'bold 14px sans-serif';
     ctx.textAlign = 'left';
     ctx.fillText(`Score: ${score}`, 30, 30);
+}
+
+function drawExplosion(canvas, ctx, x, y, onComplete) {
+    let frame = 0;
+    const interval = setInterval(() => {
+        ctx.fillStyle = `hsl(50 100% 50%)`;
+        ctx.beginPath();
+        ctx.arc(
+            realToCanvasX(canvas.width, x),
+            realToCanvasY(canvas.height, y),
+            frame * 8,
+            0,
+            Math.PI * 2
+        );
+        ctx.fill();
+        frame++;
+        if (frame > 5) {
+            clearInterval(interval);
+            onComplete();
+        }
+    }, 1000 / 60);
 }
 
 function hitboxesIntersect(a, b) {
