@@ -117,9 +117,13 @@ const play = () =>
             if (frames % 500 === 0) {
                 projectiles.push(
                     new Projectile({
-                        turret: turrets[0],
-                        turretWidth,
-                        turretBarrelLength,
+                        x:
+                            turrets[0][0] +
+                            turretWidth / 2 +
+                            turretBarrelLength * Math.cos(angleToLander),
+                        y:
+                            turrets[0][1] +
+                            turretBarrelLength * Math.sin(angleToLander),
                         thickness: projectileThickness,
                         length: projectileLength,
                         speed: projectileSpeed,
@@ -130,9 +134,13 @@ const play = () =>
             if (frames % 500 === 50) {
                 projectiles.push(
                     new Projectile({
-                        turret: turrets[0],
-                        turretWidth,
-                        turretBarrelLength,
+                        x:
+                            turrets[0][0] +
+                            turretWidth / 2 +
+                            turretBarrelLength * Math.cos(angleToLander),
+                        y:
+                            turrets[0][1] +
+                            turretBarrelLength * Math.sin(angleToLander),
                         thickness: projectileThickness,
                         length: projectileLength,
                         speed: projectileSpeed,
@@ -143,9 +151,13 @@ const play = () =>
             if (frames % 500 === 100) {
                 projectiles.push(
                     new Projectile({
-                        turret: turrets[0],
-                        turretWidth,
-                        turretBarrelLength,
+                        x:
+                            turrets[0][0] +
+                            turretWidth / 2 +
+                            turretBarrelLength * Math.cos(angleToLander),
+                        y:
+                            turrets[0][1] +
+                            turretBarrelLength * Math.sin(angleToLander),
                         thickness: projectileThickness,
                         length: projectileLength,
                         speed: projectileSpeed,
@@ -815,18 +827,9 @@ class Lander {
 }
 
 class Projectile {
-    constructor({
-        turret,
-        turretWidth,
-        turretBarrelLength,
-        thickness,
-        length,
-        speed,
-        angle,
-    }) {
-        this.x =
-            turret[0] + turretWidth / 2 + turretBarrelLength * Math.cos(angle);
-        this.y = turret[1] + turretBarrelLength * Math.sin(angle);
+    constructor({ x, y, thickness, length, speed, angle }) {
+        this.x = x;
+        this.y = y;
         this.thickness = thickness;
         this.length = length;
         this.speed = speed;
