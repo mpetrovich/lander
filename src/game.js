@@ -170,8 +170,24 @@ const play = () =>
                         lander.getHitbox()
                     )
                 ) {
+                    // Hit lander
                     projectiles.splice(index, 1);
                     lander.crashed = true;
+                }
+
+                if (
+                    projectile.y < 0 ||
+                    projectile.y > canvas.height ||
+                    projectile.x < 0 ||
+                    projectile.x > canvas.width
+                ) {
+                    // Out of bounds
+                    projectiles.splice(index, 1);
+                }
+
+                if (projectile.y <= terrain[Math.round(projectile.x)]) {
+                    // Hit terrain
+                    projectiles.splice(index, 1);
                 }
             });
 
