@@ -12,7 +12,13 @@ function main() {
         })
         .catch(() => {})
         .finally(() =>
-            window.addEventListener('keydown', () => main(), { once: true })
+            setTimeout(
+                () =>
+                    window.addEventListener('keydown', () => main(), {
+                        once: true,
+                    }),
+                500
+            )
         );
 }
 
@@ -34,6 +40,12 @@ const play = () =>
         const landingPadWidth = 80;
         const turretWidth = 60;
         const turretCount = 1;
+        const turretBarrelLength = 30;
+
+        const projectileThickness = 4;
+        const projectileLength = 4;
+        const projectileSpeed = 50;
+
         const [backgroundTerrain] = generateTerrain({
             width: terrainWidth,
             heightRange: [200, 300],
@@ -107,9 +119,10 @@ const play = () =>
                     new Projectile({
                         turret: turrets[0],
                         turretWidth,
-                        thickness: 4,
-                        length: 15,
-                        speed: 50,
+                        turretBarrelLength,
+                        thickness: projectileThickness,
+                        length: projectileLength,
+                        speed: projectileSpeed,
                         angle: angleToLander,
                     })
                 );
@@ -119,9 +132,10 @@ const play = () =>
                     new Projectile({
                         turret: turrets[0],
                         turretWidth,
-                        thickness: 4,
-                        length: 15,
-                        speed: 50,
+                        turretBarrelLength,
+                        thickness: projectileThickness,
+                        length: projectileLength,
+                        speed: projectileSpeed,
                         angle: angleToLander,
                     })
                 );
@@ -131,9 +145,10 @@ const play = () =>
                     new Projectile({
                         turret: turrets[0],
                         turretWidth,
-                        thickness: 4,
-                        length: 15,
-                        speed: 50,
+                        turretBarrelLength,
+                        thickness: projectileThickness,
+                        length: projectileLength,
+                        speed: projectileSpeed,
                         angle: angleToLander,
                     })
                 );
@@ -142,6 +157,22 @@ const play = () =>
             lander.move(secondsPerFrame, terrain, landingPads, landingPadWidth);
             projectiles.forEach((projectile) => {
                 projectile.move(secondsPerFrame);
+            });
+            projectiles.forEach((projectile, index) => {
+                if (projectile.x < 0 || projectile.x > canvas.width) {
+                    projectiles.splice(index, 1);
+                }
+            });
+            projectiles.forEach((projectile, index) => {
+                if (
+                    hitboxesIntersect(
+                        projectile.getHitbox(),
+                        lander.getHitbox()
+                    )
+                ) {
+                    projectiles.splice(index, 1);
+                    lander.crashed = true;
+                }
             });
 
             drawBackground(canvas, ctx);
@@ -157,7 +188,36 @@ const play = () =>
             drawTerrain(canvas, ctx, midgroundTerrain, 'hsl(0 0% 15%)');
             drawTerrain(canvas, ctx, terrain, 'hsl(0 0% 50%)');
             drawLandingPads(canvas, ctx, landingPads, landingPadWidth, lander);
-            drawTurrets(canvas, ctx, turrets, turretWidth);
+
+            turrets.forEach(([x, height]) => {
+                ctx.fillStyle = 'hsl(0 100% 50%)';
+                ctx.strokeStyle = ctx.fillStyle;
+                ctx.lineWidth = 4;
+
+                // Dome
+                ctx.beginPath();
+                ctx.arc(
+                    x + turretWidth / 2,
+                    canvas.height - height,
+                    turretWidth / 4,
+                    Math.PI,
+                    Math.PI * 2
+                );
+                ctx.fill();
+
+                // Barrel
+                ctx.beginPath();
+                ctx.moveTo(x + turretWidth / 2, canvas.height - height);
+                ctx.lineTo(
+                    x +
+                        turretWidth / 2 +
+                        turretBarrelLength * Math.cos(angleToLander),
+                    canvas.height -
+                        height -
+                        turretBarrelLength * Math.sin(angleToLander)
+                );
+                ctx.stroke();
+            });
             lander.draw(canvas, ctx);
             drawProjectiles(canvas, ctx, projectiles);
             drawScore({ canvas, ctx, score });
@@ -405,16 +465,16 @@ function drawLandingPads(canvas, ctx, landingPads, landingPadWidth, lander) {
         if (lander.landed && x <= lander.x && lander.x <= x + landingPadWidth) {
             ctx.fillStyle = 'green';
         } else if (lander.speed > lander.maxLandingSpeed) {
-            ctx.fillStyle = 'red';
+            ctx.fillStyle = 'yellow';
         } else if (lander.crashed) {
             ctx.fillStyle = 'red';
         } else {
-            ctx.fillStyle = 'yellow';
+            ctx.fillStyle = 'white';
         }
         ctx.fillRect(x, canvas.height - height, landingPadWidth, 5);
 
         if (lander.speed > lander.maxLandingSpeed) {
-            ctx.fillStyle = 'rgb(150 0 0)';
+            ctx.fillStyle = 'yellow';
             ctx.font = 'bold 12px sans-serif';
             ctx.textAlign = 'center';
             ctx.fillText(
@@ -423,16 +483,16 @@ function drawLandingPads(canvas, ctx, landingPads, landingPadWidth, lander) {
                 canvas.height - height + 20
             );
         } else if (lander.crashed) {
-            ctx.fillStyle = 'rgb(150 0 0)';
+            ctx.fillStyle = 'red';
             ctx.font = 'bold 12px sans-serif';
             ctx.textAlign = 'center';
             ctx.fillText(
-                'OFF TARGET',
+                'CRASHED',
                 x + landingPadWidth / 2,
                 canvas.height - height + 20
             );
         } else if (lander.landed) {
-            ctx.fillStyle = 'rgb(0 100 0)';
+            ctx.fillStyle = 'green';
             ctx.font = 'bold 12px sans-serif';
             ctx.textAlign = 'center';
             ctx.fillText(
@@ -441,22 +501,6 @@ function drawLandingPads(canvas, ctx, landingPads, landingPadWidth, lander) {
                 canvas.height - height + 20
             );
         }
-    });
-}
-
-function drawTurrets(canvas, ctx, turrets, turretWidth) {
-    ctx.fillStyle = 'hsl(0 0% 30%)';
-    turrets.forEach(([x, height]) => {
-        // Draw hemisphere
-        ctx.beginPath();
-        ctx.arc(
-            x + turretWidth / 2,
-            canvas.height - height,
-            turretWidth / 2,
-            Math.PI,
-            Math.PI * 2
-        );
-        ctx.fill();
     });
 }
 
@@ -471,6 +515,15 @@ function drawScore({ canvas, ctx, score }) {
     ctx.font = 'bold 14px sans-serif';
     ctx.textAlign = 'left';
     ctx.fillText(`Score: ${score}`, 30, 30);
+}
+
+function hitboxesIntersect(a, b) {
+    return (
+        a.left <= b.right &&
+        a.right >= b.left &&
+        a.top >= b.bottom &&
+        a.bottom <= b.top
+    );
 }
 
 function realToCanvasX(canvasWidth, x) {
@@ -517,7 +570,7 @@ class Lander {
         width,
         height,
         offsetY = 0,
-        minX = 0,
+        minX = -Infinity,
         maxX = Infinity,
         minY = 0,
         maxY = Infinity,
@@ -622,6 +675,15 @@ class Lander {
         this.speed = Math.sqrt(this.velocityX ** 2 + this.velocityY ** 2);
     }
 
+    getHitbox() {
+        return {
+            left: this.x - this.width / 2,
+            top: this.y + this.height / 2,
+            right: this.x + this.width / 2,
+            bottom: this.y - this.height / 2,
+        };
+    }
+
     draw(canvas, ctx) {
         const midX = realToCanvasX(canvas.width, this.x);
         const midY = realToCanvasY(canvas.height, this.y);
@@ -633,7 +695,13 @@ class Lander {
         // Hitbox (debug)
         if (DEBUG) {
             ctx.strokeStyle = 'white';
-            ctx.strokeRect(left, top, this.width, this.height);
+            const hitbox = this.getHitbox();
+            ctx.strokeRect(
+                realToCanvasX(canvas.width, hitbox.left),
+                realToCanvasY(canvas.height, hitbox.top),
+                hitbox.right - hitbox.left,
+                Math.abs(hitbox.top - hitbox.bottom)
+            );
         }
 
         const rotateAngle = this.thrustX * 100;
@@ -712,9 +780,18 @@ class Lander {
 }
 
 class Projectile {
-    constructor({ turret, turretWidth, thickness, length, speed, angle }) {
-        this.x = turret[0] + turretWidth / 2 - thickness / 2;
-        this.y = turret[1] + turretWidth / 2 - thickness / 2;
+    constructor({
+        turret,
+        turretWidth,
+        turretBarrelLength,
+        thickness,
+        length,
+        speed,
+        angle,
+    }) {
+        this.x =
+            turret[0] + turretWidth / 2 + turretBarrelLength * Math.cos(angle);
+        this.y = turret[1] + turretBarrelLength * Math.sin(angle);
         this.thickness = thickness;
         this.length = length;
         this.speed = speed;
@@ -724,6 +801,15 @@ class Projectile {
     move(seconds) {
         this.x += this.speed * Math.cos(this.angle) * seconds;
         this.y += this.speed * Math.sin(this.angle) * seconds;
+    }
+
+    getHitbox() {
+        return {
+            left: this.x - this.thickness / 2,
+            top: this.y + this.length / 2,
+            right: this.x + this.thickness / 2,
+            bottom: this.y - this.length / 2,
+        };
     }
 
     draw(canvas, ctx) {
