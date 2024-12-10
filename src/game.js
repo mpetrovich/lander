@@ -320,7 +320,6 @@ function generateTerrain({
                   count: landingPadCount,
                   width: Math.ceil(landingPadWidth / stepWidth) + 1,
                   minDistance: Math.floor(landingPadEvery / stepWidth / 3),
-                  maxDistance: Math.floor(landingPadEvery / stepWidth),
               })
             : [];
     const turrets =
@@ -329,8 +328,7 @@ function generateTerrain({
                   vertices,
                   count: turretCount,
                   width: Math.ceil(turretWidth / stepWidth) + 1,
-                  minDistance: Math.floor(turretEvery / stepWidth / 3),
-                  maxDistance: Math.floor(turretEvery / stepWidth),
+                  minDistance: Math.floor(turretEvery / stepWidth),
               })
             : [];
     const terrain = rasterizeTerrainPath(width, vertices);
