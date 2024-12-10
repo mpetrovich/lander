@@ -36,14 +36,13 @@ const play = () =>
 
         const stars = generateStars(canvas.width, canvas.height, 1000);
 
+        const gravity = GRAVITY_MOON;
         const terrainWidth = canvas.width;
         const landingPadWidth = 80;
         const turretWidth = 60;
         const turretCount = 1;
         const turretBarrelLength = 30;
 
-        const projectileThickness = 4;
-        const projectileLength = 4;
         const projectileSpeed = 50;
 
         const [backgroundTerrain] = generateTerrain({
@@ -98,7 +97,7 @@ const play = () =>
             thrustAccelX: 0.05,
             thrustAccelY: 0.1,
             maxLandingSpeed: 0.5,
-            gravity: GRAVITY_MOON,
+            gravity,
             images,
         });
 
@@ -108,62 +107,67 @@ const play = () =>
         let time = 0;
         let frames = 0;
         let starfieldAngle = random(0, 360);
+        let dropBomb = false;
+        let angleToLander;
 
         const interval = setInterval(() => {
-            const angleToLander = Math.atan2(
-                lander.y - turrets[0][1],
-                lander.x - turrets[0][0]
-            );
-            if (frames % 500 === 0) {
+            if (dropBomb) {
+                dropBomb = false;
                 projectiles.push(
                     new Projectile({
-                        x:
-                            turrets[0][0] +
-                            turretWidth / 2 +
-                            turretBarrelLength * Math.cos(angleToLander),
-                        y:
-                            turrets[0][1] +
-                            turretBarrelLength * Math.sin(angleToLander),
-                        thickness: projectileThickness,
-                        length: projectileLength,
-                        speed: projectileSpeed,
-                        angle: angleToLander,
+                        source: 'lander',
+                        x: lander.x,
+                        y: lander.y - lander.height / 2,
+                        size: 8,
+                        gravity: gravity * 2,
+                        speed:
+                            Math.sqrt(
+                                lander.velocityX ** 2 + lander.velocityY ** 2
+                            ) / secondsPerFrame,
+                        angle: Math.atan2(lander.velocityY, lander.velocityX),
+                        color: 'hsl(30 100% 50%)',
                     })
                 );
             }
-            if (frames % 500 === 50) {
-                projectiles.push(
-                    new Projectile({
-                        x:
-                            turrets[0][0] +
-                            turretWidth / 2 +
-                            turretBarrelLength * Math.cos(angleToLander),
-                        y:
-                            turrets[0][1] +
-                            turretBarrelLength * Math.sin(angleToLander),
-                        thickness: projectileThickness,
-                        length: projectileLength,
-                        speed: projectileSpeed,
-                        angle: angleToLander,
-                    })
+
+            if (turrets.length > 0) {
+                angleToLander = Math.atan2(
+                    lander.y - turrets[0][1],
+                    lander.x - turrets[0][0]
                 );
-            }
-            if (frames % 500 === 100) {
-                projectiles.push(
-                    new Projectile({
-                        x:
-                            turrets[0][0] +
-                            turretWidth / 2 +
-                            turretBarrelLength * Math.cos(angleToLander),
-                        y:
-                            turrets[0][1] +
-                            turretBarrelLength * Math.sin(angleToLander),
-                        thickness: projectileThickness,
-                        length: projectileLength,
-                        speed: projectileSpeed,
-                        angle: angleToLander,
-                    })
-                );
+                if (frames % 500 === 0) {
+                    projectiles.push(
+                        generateTurretProjectile({
+                            turrets,
+                            turretWidth,
+                            turretBarrelLength,
+                            angleToLander,
+                            projectileSpeed,
+                        })
+                    );
+                }
+                if (frames % 500 === 50) {
+                    projectiles.push(
+                        generateTurretProjectile({
+                            turrets,
+                            turretWidth,
+                            turretBarrelLength,
+                            angleToLander,
+                            projectileSpeed,
+                        })
+                    );
+                }
+                if (frames % 500 === 100) {
+                    projectiles.push(
+                        generateTurretProjectile({
+                            turrets,
+                            turretWidth,
+                            turretBarrelLength,
+                            angleToLander,
+                            projectileSpeed,
+                        })
+                    );
+                }
             }
 
             lander.move(secondsPerFrame, terrain, landingPads, landingPadWidth);
@@ -177,6 +181,7 @@ const play = () =>
             });
             projectiles.forEach((projectile, index) => {
                 if (
+                    projectile.source !== 'lander' &&
                     hitboxesIntersect(
                         projectile.getHitbox(),
                         lander.getHitbox()
@@ -186,6 +191,22 @@ const play = () =>
                     projectiles.splice(index, 1);
                     lander.crashed = true;
                 }
+
+                turrets.forEach((turret, turretIndex) => {
+                    if (
+                        projectile.source === 'lander' &&
+                        hitboxesIntersect(projectile.getHitbox(), {
+                            left: turret[0],
+                            top: turret[1] + turretWidth / 2,
+                            right: turret[0] + turretWidth,
+                            bottom: turret[1],
+                        })
+                    ) {
+                        // Hit turret
+                        projectiles.splice(index, 1);
+                        turrets.splice(turretIndex, 1);
+                    }
+                });
 
                 if (
                     projectile.y < 0 ||
@@ -265,7 +286,7 @@ const play = () =>
         }, secondsPerFrame);
 
         document.addEventListener('keydown', (event) => {
-            if (event.key === 'ArrowUp' || event.key === ' ') {
+            if (event.key === 'ArrowUp') {
                 lander.thrustUp();
             }
             if (event.key === 'ArrowLeft') {
@@ -273,6 +294,9 @@ const play = () =>
             }
             if (event.key === 'ArrowRight') {
                 lander.thrustRight();
+            }
+            if (event.key === ' ') {
+                dropBomb = true;
             }
         });
 
@@ -439,6 +463,28 @@ function generateStars(width, height, numStars) {
         random(0, height),
     ]);
     return stars;
+}
+
+function generateTurretProjectile({
+    turrets,
+    turretWidth,
+    turretBarrelLength,
+    angleToLander,
+    projectileSpeed,
+}) {
+    return new Projectile({
+        source: 'turret',
+        x:
+            turrets[0][0] +
+            turretWidth / 2 +
+            turretBarrelLength * Math.cos(angleToLander),
+        y: turrets[0][1] + turretBarrelLength * Math.sin(angleToLander),
+        size: 3,
+        speed: projectileSpeed,
+        angle: angleToLander,
+        color: 'yellow',
+        gravity: 0,
+    });
 }
 
 function drawBackground(canvas, ctx) {
@@ -827,40 +873,45 @@ class Lander {
 }
 
 class Projectile {
-    constructor({ x, y, thickness, length, speed, angle }) {
+    constructor({ x, y, size, speed, angle, source, color, gravity = 0 }) {
         this.x = x;
         this.y = y;
-        this.thickness = thickness;
-        this.length = length;
+        this.size = size;
         this.speed = speed;
         this.angle = angle;
+        this.velocityX = this.speed * Math.cos(this.angle);
+        this.velocityY = this.speed * Math.sin(this.angle);
+        this.source = source;
+        this.color = color;
+        this.gravity = gravity;
+    }
+
+    accelerate(seconds) {
+        this.velocityY -= this.gravity * seconds;
     }
 
     move(seconds) {
-        this.x += this.speed * Math.cos(this.angle) * seconds;
-        this.y += this.speed * Math.sin(this.angle) * seconds;
+        this.x += this.velocityX * seconds;
+        this.y += this.velocityY * seconds;
+        this.accelerate(seconds);
     }
 
     getHitbox() {
         return {
-            left: this.x - this.thickness / 2,
-            top: this.y + this.length / 2,
-            right: this.x + this.thickness / 2,
-            bottom: this.y - this.length / 2,
+            left: this.x - this.size / 2,
+            top: this.y + this.size / 2,
+            right: this.x + this.size / 2,
+            bottom: this.y - this.size / 2,
         };
     }
 
     draw(canvas, ctx) {
         ctx.save();
         ctx.translate(this.x, canvas.height - this.y);
-        ctx.rotate(degToRad(90) - this.angle);
-        ctx.fillStyle = 'yellow';
-        ctx.fillRect(
-            -this.thickness / 2,
-            -this.length / 2,
-            this.thickness,
-            this.length
-        );
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.arc(0, 0, this.size, 0, Math.PI * 2);
+        ctx.fill();
         ctx.restore();
     }
 }
