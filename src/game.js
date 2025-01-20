@@ -67,7 +67,7 @@ const play = () =>
             width: terrainWidth,
             heightRange: [50, 100],
             minHeight: 30,
-            maxHeight: 500,
+            maxHeight: 300,
             stepWidth: 10,
             jaggedness: 10,
             hilliness: 0.8,
@@ -119,7 +119,7 @@ const play = () =>
                         x: lander.x,
                         y: lander.y - lander.height / 2,
                         size: 8,
-                        gravity: gravity * 2,
+                        gravity: gravity * 4,
                         speed:
                             Math.sqrt(
                                 lander.velocityX ** 2 + lander.velocityY ** 2
