@@ -38,7 +38,10 @@ const play = () =>
         const stars = generateStars(canvas.width, canvas.height, 1000)
 
         const gravity = GRAVITY_MOON
-        const terrainWidth = canvas.width
+        const terrainWidth = canvas.width * 2
+        const terrainHeight = canvas.height
+        const starsWidth = canvas.width * 2
+        const starsHeight = canvas.height * 2
         const landingPadWidth = 80
         const turretWidth = 60
         const turretCount = 0
@@ -101,6 +104,7 @@ const play = () =>
             gravity,
             images,
         })
+        const landerXOffset = lander.x
 
         const secondsPerFrame = 1 / 60
         const starfieldPrecession = random(-0.005, 0.005)
@@ -214,16 +218,22 @@ const play = () =>
             })
 
             drawBackground(canvas)
+
+            ctx.save()
+            ctx.translate(landerXOffset - lander.x, 0)
+
             drawStars({
                 canvas,
+                width: starsWidth,
+                height: starsHeight,
                 stars,
                 time,
                 angle: starfieldAngle,
                 speed: starfieldSpeed,
             })
-            drawTerrain(canvas, backgroundTerrain, 'hsl(0 0% 10%)')
-            drawTerrain(canvas, midgroundTerrain, 'hsl(0 0% 15%)')
-            drawTerrain(canvas, terrain, 'hsl(0 0% 50%)')
+            drawTerrain({ canvas, terrainWidth, terrainHeight, terrain: backgroundTerrain, color: 'hsl(0 0% 10%)' })
+            drawTerrain({ canvas, terrainWidth, terrainHeight, terrain: midgroundTerrain, color: 'hsl(0 0% 15%)' })
+            drawTerrain({ canvas, terrainWidth, terrainHeight, terrain, color: 'hsl(0 0% 50%)' })
             drawLandingPads(canvas, landingPads, landingPadWidth, lander)
 
             for (const [x, height] of turrets) {
@@ -247,7 +257,6 @@ const play = () =>
             }
             lander.draw(canvas)
             drawProjectiles(canvas, projectiles)
-            drawScore({ canvas, score })
 
             if (lander.crashed || lander.landed) {
                 clearInterval(interval)
@@ -258,6 +267,11 @@ const play = () =>
                 }
                 return
             }
+
+            ctx.restore()
+
+            drawScore({ canvas, score })
+
             time += secondsPerFrame
             frames++
             starfieldAngle += starfieldPrecession
@@ -350,7 +364,11 @@ function generateTerrain({
 
 function generateTerrainPath({ width, heightRange, minHeight, maxHeight, stepWidth, jaggedness, hilliness }) {
     const vertices = []
-    for (let x = 0, lastHeight = random(heightRange[0], heightRange[1]), slopeBias = 0; x <= width; x += stepWidth) {
+    for (
+        let x = 0, lastHeight = random(heightRange[0], heightRange[1]), slopeBias = 0, lastSlopeBias = 0, lastSlope = 0;
+        x <= width;
+        x += stepWidth
+    ) {
         lastSlopeBias = slopeBias
         slopeBias = random(-1, 1) + lastSlopeBias * hilliness
         let height = Math.floor(lastHeight + slopeBias * jaggedness)
@@ -439,30 +457,30 @@ function drawBackground(canvas) {
     ctx.fillRect(0, 0, canvas.width, canvas.height)
 }
 
-function drawStars({ canvas, stars, time = 0, angle = 0, speed = 1 }) {
+function drawStars({ canvas, width, height, stars, time = 0, angle = 0, speed = 1 }) {
     const ctx = canvas.getContext('2d')
     ctx.save()
     ctx.translate(canvas.width / 2, canvas.height / 2)
     ctx.rotate(degToRad(angle))
-    stars.forEach(([x, y]) => {
+    for (const [x, y] of stars) {
         ctx.fillStyle = `rgb(255 255 255 / ${random(0.5, 0.8)})`
         ctx.fillRect(-canvas.width / 2 + ((x + time * speed) % canvas.width), -canvas.height * 1.5 + y, 1, 1)
         ctx.fillRect(-canvas.width / 2 + ((x + time * speed) % canvas.width), -canvas.height * 0.5 + y, 1, 1)
         ctx.fillRect(-canvas.width / 2 + ((x + time * speed) % canvas.width), canvas.height * 0.5 + y, 1, 1)
-    })
+    }
     ctx.restore()
 }
 
-function drawTerrain(canvas, terrain, color) {
+function drawTerrain({ canvas, terrainWidth, terrainHeight, terrain, color }) {
     const ctx = canvas.getContext('2d')
     ctx.fillStyle = color
     ctx.beginPath()
-    ctx.moveTo(0, canvas.height - terrain[0])
-    terrain.slice(1).forEach((height, x) => {
-        ctx.lineTo(x, canvas.height - height)
-    })
-    ctx.lineTo(canvas.width, canvas.height)
-    ctx.lineTo(0, canvas.height)
+    ctx.moveTo(0, terrainHeight - terrain[0])
+    for (let x = 1; x < terrainWidth; x++) {
+        ctx.lineTo(x, terrainHeight - terrain[x])
+    }
+    ctx.lineTo(terrainWidth, terrainHeight)
+    ctx.lineTo(0, terrainHeight)
     ctx.fill()
 }
 
