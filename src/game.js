@@ -220,7 +220,13 @@ const play = () =>
             drawBackground(canvas)
 
             ctx.save()
-            ctx.translate(landerXOffset - lander.x, 0)
+
+            const scrollStartThreshold = canvas.width / 2
+            if (lander.x < scrollStartThreshold) {
+                ctx.translate(0, 0)
+            } else {
+                ctx.translate(0 - (lander.x - scrollStartThreshold), 0)
+            }
 
             drawStars({
                 canvas,
