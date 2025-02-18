@@ -104,7 +104,6 @@ const play = () =>
             gravity,
             images,
         })
-        const landerXOffset = lander.x
 
         const secondsPerFrame = 1 / 60
         const starfieldPrecession = random(-0.005, 0.005)
@@ -221,7 +220,7 @@ const play = () =>
 
             ctx.save()
 
-            const scrollStartThreshold = canvas.width / 2
+            const scrollStartThreshold = canvas.width / 3
             if (lander.x < scrollStartThreshold) {
                 ctx.translate(0, 0)
             } else {
@@ -820,4 +819,4 @@ class Projectile {
     }
 }
 
-main()
+export default main

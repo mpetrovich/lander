@@ -9,3 +9,10 @@ Commands:
 -   Any key to restart
 
 ![Lunar Lander](./img/screenshot.png)
+
+## Development
+
+```bash
+npm install
+npx http-server -c-1 -o
+```
