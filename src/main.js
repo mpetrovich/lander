@@ -1,16 +1,23 @@
+import Lander from './lander.js'
+import Projectile from './projectile.js'
+import Terrain from './terrain.js'
+import { realToCanvasX, realToCanvasY, random, degToRad } from './utils.js'
+
 const DEBUG = false
 const GRAVITY_EARTH = 9.8
 const GRAVITY_MOON = 1.625
 const GRAVITY_JUPITER = 24.79
 let score = 0
 
-function main() {
+export default function main() {
     play()
         .then(({ lander }) => {
             const points = calculatePoints(lander)
             score += points
         })
-        .catch(() => {})
+        .catch((e) => {
+            console.log(e)
+        })
         .finally(() =>
             setTimeout(
                 () =>
@@ -49,7 +56,7 @@ const play = () =>
 
         const projectileSpeed = 50
 
-        const [backgroundTerrain] = generateTerrain({
+        const [backgroundTerrain] = Terrain.generate({
             width: terrainWidth,
             heightRange: [200, 300],
             minHeight: 20,
@@ -58,7 +65,7 @@ const play = () =>
             jaggedness: 20,
             hilliness: 0.5,
         })
-        const [midgroundTerrain] = generateTerrain({
+        const [midgroundTerrain] = Terrain.generate({
             width: terrainWidth,
             heightRange: [100, 300],
             minHeight: 20,
@@ -67,7 +74,7 @@ const play = () =>
             jaggedness: 10,
             hilliness: 0.5,
         })
-        const [terrain, landingPads, turrets] = generateTerrain({
+        const [terrain, landingPads, turrets] = Terrain.generate({
             width: terrainWidth,
             heightRange: [50, 100],
             minHeight: 30,
@@ -321,123 +328,6 @@ function loadImages(srcs) {
     return images
 }
 
-function generateTerrain({
-    width,
-    heightRange,
-    minHeight,
-    maxHeight,
-    stepWidth,
-    jaggedness,
-    hilliness,
-    landingPadCount = 0,
-    landingPadWidth,
-    landingPadEvery = width,
-    turretCount = 0,
-    turretWidth,
-    turretEvery = width,
-}) {
-    const vertices = generateTerrainPath({
-        width,
-        heightRange,
-        minHeight,
-        maxHeight,
-        stepWidth,
-        jaggedness,
-        hilliness,
-    })
-    const landingPads =
-        landingPadCount > 0
-            ? generateTerrainObjects({
-                  vertices,
-                  count: landingPadCount,
-                  width: Math.ceil(landingPadWidth / stepWidth) + 1,
-                  minDistance: Math.floor(landingPadEvery / stepWidth / 3),
-              })
-            : []
-    const turrets =
-        turretCount > 0
-            ? generateTerrainObjects({
-                  vertices,
-                  count: turretCount,
-                  width: Math.ceil(turretWidth / stepWidth) + 1,
-                  minDistance: Math.floor(turretEvery / stepWidth),
-              })
-            : []
-    const terrain = rasterizeTerrainPath(width, vertices)
-    return [terrain, landingPads, turrets]
-}
-
-function generateTerrainPath({ width, heightRange, minHeight, maxHeight, stepWidth, jaggedness, hilliness }) {
-    const vertices = []
-    for (
-        let x = 0, lastHeight = random(heightRange[0], heightRange[1]), slopeBias = 0, lastSlopeBias = 0, lastSlope = 0;
-        x <= width;
-        x += stepWidth
-    ) {
-        lastSlopeBias = slopeBias
-        slopeBias = random(-1, 1) + lastSlopeBias * hilliness
-        let height = Math.floor(lastHeight + slopeBias * jaggedness)
-        height = clamp(height, minHeight, maxHeight)
-        vertices.push([x, height])
-        lastHeight = height
-    }
-    return vertices
-}
-
-function generateTerrainObjects({
-    vertices,
-    count, // Number of objects
-    width, // Width of each object, in number of vertices
-    bufferWidth = 2, // Number of vertices to leave free before and after objects
-    minDistance = 0, // Minimum distance from the left edge of the terrain, in number of vertices
-    maxDistance = Infinity, // Maximum distance from the left edge of the terrain, in number of vertices
-}) {
-    const objects = []
-    const availableIndices = Array.from(vertices.keys()).slice(
-        minDistance,
-        Math.min(maxDistance - bufferWidth, vertices.length - width - bufferWidth)
-    )
-    for (let n = 0; n < count; n++) {
-        const minAvailabilityIndex = bufferWidth
-        const maxAvailabilityIndex = availableIndices.length - width - bufferWidth - 1
-        const selectedAvailabilityIndex = randomIndex(
-            availableIndices.length,
-            minAvailabilityIndex,
-            maxAvailabilityIndex
-        )
-        const vertexIndex = availableIndices[selectedAvailabilityIndex]
-        const startVertex = vertices[vertexIndex]
-        for (let s = 0; s < width; s++) {
-            vertices[vertexIndex + s][1] = startVertex[1]
-        }
-        availableIndices.splice(
-            Math.max(0, selectedAvailabilityIndex - width - bufferWidth),
-            width * 2 + bufferWidth * 3
-        )
-        objects.push(startVertex)
-    }
-    return objects
-}
-
-function rasterizeTerrainPath(width, vertices) {
-    const terrain = Array.from({ length: width }, () => 0)
-    let startVertex = vertices.shift()
-    let endVertex = vertices.shift()
-    for (let x = 0; x <= width; x++) {
-        const slope = (endVertex[1] - startVertex[1]) / (endVertex[0] - startVertex[0])
-        const height = startVertex[1] + slope * (x - startVertex[0])
-        terrain[x] = height
-        if (x === endVertex[0]) {
-            startVertex = endVertex
-            endVertex = vertices.shift()
-        }
-        if (endVertex === undefined) {
-            break
-        }
-    }
-    return terrain
-}
-
 function generateStars(width, height, numStars) {
     const stars = Array.from({ length: numStars }, () => [random(0, width), random(0, height)])
     return stars
@@ -556,267 +446,3 @@ function drawExplosion(canvas, x, y, onComplete) {
 function hitboxesIntersect(a, b) {
     return a.left <= b.right && a.right >= b.left && a.top >= b.bottom && a.bottom <= b.top
 }
-
-function realToCanvasX(canvasWidth, x) {
-    return x
-}
-
-function realToCanvasY(canvasHeight, y) {
-    return canvasHeight - y
-}
-
-function clamp(value, min, max) {
-    return Math.min(Math.max(value, min), max)
-}
-
-function random(min, max) {
-    return min + (max - min) * Math.random()
-}
-
-function randomIndex(length, min = 0, max = length - 1) {
-    return clamp(0, Math.floor(random(min, max)), Math.max(0, length - 1))
-}
-
-function randomWithBias(min, max, bias = 2) {
-    return min + (max - min) * Math.pow(Math.random(), bias)
-}
-
-function round(value, precision) {
-    return Math.round(value * 10 ** precision) / 10 ** precision
-}
-
-function degToRad(degrees) {
-    return (degrees * Math.PI) / 180
-}
-
-class Lander {
-    constructor({
-        x,
-        y,
-        mass,
-        fuel,
-        thrustAccelX,
-        thrustAccelY,
-        maxLandingSpeed,
-        width,
-        height,
-        offsetY = 0,
-        minX = -Infinity,
-        maxX = Infinity,
-        minY = 0,
-        maxY = Infinity,
-        velocityX = 0,
-        velocityY = 0,
-        minVelocityX = -Infinity,
-        maxVelocityX = Infinity,
-        minVelocityY = -Infinity,
-        maxVelocityY = Infinity,
-        gravity = 9.8,
-        images,
-    }) {
-        this.x = x
-        this.y = y
-        this.mass = mass
-        this.fuel = fuel
-        this.initialFuel = fuel
-        this.thrustAccelX = thrustAccelX
-        this.thrustAccelY = thrustAccelY
-        this.maxLandingSpeed = maxLandingSpeed
-        this.width = width
-        this.height = height
-        this.offsetY = offsetY
-        this.minX = minX
-        this.maxX = maxX
-        this.minY = minY
-        this.maxY = maxY
-        this.velocityX = velocityX
-        this.velocityY = velocityY
-        this.minVelocityX = minVelocityX
-        this.maxVelocityX = maxVelocityX
-        this.minVelocityY = minVelocityY
-        this.maxVelocityY = maxVelocityY
-        this.gravity = gravity
-        this.images = images
-        this.speed = Math.sqrt(this.velocityX ** 2 + this.velocityY ** 2)
-    }
-
-    move(seconds, terrain, landingPads, landingPadWidth) {
-        const mass = this.mass + (this.fuel / this.initialFuel) * this.mass
-        this.accelerate(0, -mass * this.gravity * seconds)
-
-        const terrainHeight = terrain[Math.round(this.x)] + this.height / 2
-        if (this.y > terrainHeight) {
-            this.x = clamp(this.x + this.velocityX, this.minX, this.maxX)
-            this.y = clamp(this.y + this.velocityY, this.minY, this.maxY)
-        } else {
-            const landerX = this.x
-            const landerWidth = this.width
-            if (
-                this.speed <= this.maxLandingSpeed &&
-                landingPads.some(
-                    ([padX, height]) => padX <= landerX && landerX + landerWidth / 2 <= padX + landingPadWidth
-                )
-            ) {
-                this.landed = true
-            } else {
-                this.crashed = true
-            }
-            this.y = terrainHeight
-            this.thrust(0, 0)
-        }
-    }
-
-    thrustUp() {
-        this.thrust(0, this.thrustAccelY)
-    }
-
-    thrustLeft() {
-        this.thrust(-this.thrustAccelX, 0)
-    }
-
-    thrustRight() {
-        this.thrust(this.thrustAccelX, 0)
-    }
-
-    thrust(dx, dy) {
-        this.fuel = clamp(this.fuel - Math.abs(dx) - Math.abs(dy), 0, Infinity)
-        if (this.fuel > 0) {
-            this.accelerate(dx, dy)
-            this.thrustX = dx
-            this.thrustY = dy
-        } else {
-            this.thrustX = 0
-            this.thrustY = 0
-        }
-    }
-
-    accelerate(dx, dy) {
-        this.velocityX = clamp(this.velocityX + dx, this.minVelocityX, this.maxVelocityX)
-        this.velocityY = clamp(this.velocityY + dy, this.minVelocityY, this.maxVelocityY)
-        this.speed = Math.sqrt(this.velocityX ** 2 + this.velocityY ** 2)
-    }
-
-    getHitbox() {
-        return {
-            left: this.x - this.width / 2,
-            top: this.y + this.height / 2,
-            right: this.x + this.width / 2,
-            bottom: this.y - this.height / 2,
-        }
-    }
-
-    draw(canvas) {
-        const ctx = canvas.getContext('2d')
-        const midX = realToCanvasX(canvas.width, this.x)
-        const midY = realToCanvasY(canvas.height, this.y)
-        const left = midX - this.width / 2
-        const top = midY - this.height / 2
-
-        ctx.save()
-
-        // Hitbox (debug)
-        if (DEBUG) {
-            ctx.strokeStyle = 'white'
-            const hitbox = this.getHitbox()
-            ctx.strokeRect(
-                realToCanvasX(canvas.width, hitbox.left),
-                realToCanvasY(canvas.height, hitbox.top),
-                hitbox.right - hitbox.left,
-                Math.abs(hitbox.top - hitbox.bottom)
-            )
-        }
-
-        const rotateAngle = this.thrustX * 100
-        ctx.translate(midX, midY)
-        ctx.rotate(degToRad(rotateAngle))
-
-        // Thrust up
-        if (this.thrustY > 0) {
-            ctx.fillStyle = 'hsl(50 100% 50%)'
-            ctx.beginPath()
-            ctx.arc(-this.width / 4, this.height * 0.57, this.width / 5, 0, Math.PI * 2)
-            ctx.arc(this.width / 4, this.height * 0.57, this.width / 5, 0, Math.PI * 2)
-            ctx.fill()
-        }
-
-        // Thrust left
-        if (this.thrustX < 0) {
-            ctx.fillStyle = 'hsl(50 100% 50%)'
-            ctx.beginPath()
-            ctx.arc(this.width / 4, this.height * 0.57, this.width / 5, 0, Math.PI * 2)
-            ctx.fill()
-        }
-
-        // Thrust right
-        if (this.thrustX > 0) {
-            ctx.fillStyle = 'hsl(50 100% 50%)'
-            ctx.beginPath()
-            ctx.arc(-this.width / 4, this.height * 0.57, this.width / 5, 0, Math.PI * 2)
-            ctx.fill()
-        }
-
-        // Sprite
-        const img = this.images[this.crashed ? 'crashed' : this.landed ? 'landed' : 'flying']
-        const imgX = -this.width / 2
-        const imgY = -this.height / 2 + this.offsetY
-        const imgWidth = this.width
-        const imgHeight = this.height
-        ctx.drawImage(img, imgX, imgY, imgWidth, imgHeight)
-
-        ctx.restore()
-
-        // Fuel
-        if (!this.crashed && !this.landed) {
-            const fuelRatio = this.fuel / this.initialFuel
-            ctx.fillStyle = `hsl(210 100% 50%)`
-            ctx.fillRect(left, top - 5, this.width * fuelRatio, 5)
-        }
-    }
-}
-
-class Projectile {
-    constructor({ x, y, size, speed, angle, source, color, gravity = 0 }) {
-        this.x = x
-        this.y = y
-        this.size = size
-        this.speed = speed
-        this.angle = angle
-        this.velocityX = this.speed * Math.cos(this.angle)
-        this.velocityY = this.speed * Math.sin(this.angle)
-        this.source = source
-        this.color = color
-        this.gravity = gravity
-    }
-
-    accelerate(seconds) {
-        this.velocityY -= this.gravity * seconds
-    }
-
-    move(seconds) {
-        this.x += this.velocityX * seconds
-        this.y += this.velocityY * seconds
-        this.accelerate(seconds)
-    }
-
-    getHitbox() {
-        return {
-            left: this.x - this.size / 2,
-            top: this.y + this.size / 2,
-            right: this.x + this.size / 2,
-            bottom: this.y - this.size / 2,
-        }
-    }
-
-    draw(canvas) {
-        const ctx = canvas.getContext('2d')
-        ctx.save()
-        ctx.translate(this.x, canvas.height - this.y)
-        ctx.fillStyle = this.color
-        ctx.beginPath()
-        ctx.arc(0, 0, this.size, 0, Math.PI * 2)
-        ctx.fill()
-        ctx.restore()
-    }
-}
-
-export default main
